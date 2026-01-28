@@ -30,7 +30,7 @@ export default function App() {
   const [googleToken, setGoogleToken] = useState(null);
   const [sheets, setSheets] = useState([]);
   const [selectedSheetId, setSelectedSheetId] = useState('');
-  const [newSheetName, setNewSheetName] = useState('HubSpot Export');
+  const [newSheetName, setNewSheetName] = useState('HubSpot Company Export');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   // Process State
@@ -41,7 +41,7 @@ export default function App() {
   const [stats, setStats] = useState({ totalFetched: 0, totalWritten: 0, batches: 0 });
 
   // Settings
-  const hubSpotEndpoint = '/api/hubspot/contacts';
+  const hubSpotEndpoint = '/api/hubspot/companies';
 
   // Refs for async loop control
   const stopSignalRef = useRef(false);
@@ -189,7 +189,7 @@ export default function App() {
         'Paste a HubSpot Private App Access Token (starts with "pat-")—not an API key.',
         'Paste the token WITHOUT the "Bearer" prefix (the app adds it).',
         'Confirm the token is active and not revoked in HubSpot.',
-        'Ensure the Private App has the correct scopes (crm.objects.contacts.read at minimum).',
+        'Ensure the Private App has the correct scopes (crm.objects.companies.read at minimum).',
         'If using environment variables, verify HUBSPOT_ACCESS_TOKEN is set and restart the server.'
       ]
     },
@@ -198,7 +198,7 @@ export default function App() {
       label: 'Forbidden',
       meaning: 'Token is valid, but lacks required scopes or access rights.',
       fixes: [
-        'Enable crm.objects.contacts.read (and any other needed scopes) on the Private App.',
+        'Enable crm.objects.companies.read (and any other needed scopes) on the Private App.',
         'Re-generate the token if you changed scopes.',
         'Confirm the app is installed and allowed in the correct HubSpot account.'
       ]
@@ -208,7 +208,7 @@ export default function App() {
       label: 'Not Found',
       meaning: 'Endpoint path is wrong or the resource is unavailable.',
       fixes: [
-        'Verify /api/hubspot/contacts is reachable locally.',
+        'Verify /api/hubspot/companies is reachable locally.',
         'Confirm the proxy server is running and mapped to the correct HubSpot endpoint.',
         'Check for typos in the route or query params.'
       ]
@@ -337,7 +337,7 @@ export default function App() {
     [
       '1) Confirm the local server is running: `npm run server` (or your deployed backend).',
       '2) Create a HubSpot Private App (Settings → Integrations → Private Apps).',
-      '3) Enable scopes: crm.objects.contacts.read (minimum for this tool).',
+      '3) Enable scopes: crm.objects.companies.read (minimum for this tool).',
       '4) Copy the Access Token (starts with "pat-").',
       '5) Paste the token into this field WITHOUT the "Bearer" prefix.',
       '6) Click “Connect HubSpot” to run the diagnostic.',
@@ -361,7 +361,7 @@ export default function App() {
     addLog(`Error message: ${err.message}`, 'warning');
     [
       '• Ensure the local proxy server is running (npm run server).',
-      '• Verify the proxy endpoint is reachable at /api/hubspot/contacts.',
+      '• Verify the proxy endpoint is reachable at /api/hubspot/companies.',
       '• If using a hosted backend, confirm the API base URL and CORS settings.',
       '• Check browser devtools → Network tab for blocked or failed requests.',
       '• Verify there is no VPN/firewall blocking api.hubapi.com.'
@@ -449,7 +449,7 @@ export default function App() {
 
       // 2. Add Header Row
       addLog('Writing headers to sheet...');
-      const headers = ['ID', 'Email', 'First Name', 'Last Name', 'Created Date', 'Last Modified'];
+      const headers = ['ID', 'Company Name', 'Domain', 'Industry', 'Created Date', 'Last Modified'];
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${activeSheetId}/values/A1:append?valueInputOption=RAW`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${googleToken}`, 'Content-Type': 'application/json' },
@@ -466,7 +466,7 @@ export default function App() {
 
       while (hasMore && !stopSignalRef.current) {
         // --- A. Fetch from HubSpot ---
-        let url = `${hubSpotEndpoint}?limit=50&properties=email,firstname,lastname,createdate,lastmodifieddate`;
+        let url = `${hubSpotEndpoint}?limit=50&properties=name,domain,industry,createdate,hs_lastmodifieddate`;
         if (afterCursor) url += `&after=${afterCursor}`;
 
         const hsRes = await fetch(url, {
@@ -483,21 +483,21 @@ export default function App() {
         }
 
         const hsData = await hsRes.json();
-        const contacts = hsData.results;
+        const companies = hsData.results;
 
-        if (!contacts || contacts.length === 0) {
+        if (!companies || companies.length === 0) {
           hasMore = false;
           break;
         }
 
         // --- B. Format Data ---
-        const rows = contacts.map(c => [
+        const rows = companies.map(c => [
           c.id,
-          c.properties.email || '',
-          c.properties.firstname || '',
-          c.properties.lastname || '',
+          c.properties.name || '',
+          c.properties.domain || '',
+          c.properties.industry || '',
           c.properties.createdate || '',
-          c.properties.lastmodifieddate || ''
+          c.properties.hs_lastmodifieddate || ''
         ]);
 
         // --- C. Push to Google Sheets ---
@@ -519,14 +519,14 @@ export default function App() {
         }
 
         // --- D. Update State & Delay ---
-        totalProcessed += contacts.length;
+        totalProcessed += companies.length;
         batchCount++;
         setStats({ 
           totalFetched: totalProcessed, 
           totalWritten: totalProcessed, 
           batches: batchCount 
         });
-        addLog(`Batch ${batchCount}: Processed ${contacts.length} records. Total: ${totalProcessed}`);
+        addLog(`Batch ${batchCount}: Processed ${companies.length} records. Total: ${totalProcessed}`);
 
         // Update cursor
         if (hsData.paging && hsData.paging.next) {
@@ -607,13 +607,13 @@ export default function App() {
                   <ol className="list-decimal list-inside space-y-1">
                     <li>Start the local proxy server: <span className="font-mono">npm run server</span>.</li>
                     <li>In HubSpot, go to <span className="font-semibold">Settings → Integrations → Private Apps</span>.</li>
-                    <li>Create a Private App and enable <span className="font-mono">crm.objects.contacts.read</span> scope.</li>
+                    <li>Create a Private App and enable <span className="font-mono">crm.objects.companies.read</span> scope.</li>
                     <li>Copy the Access Token (starts with <span className="font-mono">pat-</span>).</li>
                     <li>Paste the token below <strong>without</strong> the <span className="font-mono">Bearer</span> prefix.</li>
                     <li>Click “Connect HubSpot” to run the diagnostic.</li>
                   </ol>
                   <p>
-                    Requests route through the local server at <span className="font-mono">/api/hubspot/contacts</span>. If
+                    Requests route through the local server at <span className="font-mono">/api/hubspot/companies</span>. If
                     you prefer env vars, set <span className="font-mono">HUBSPOT_ACCESS_TOKEN</span> and restart the server.
                   </p>
                   <p className="text-slate-600">
