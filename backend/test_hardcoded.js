@@ -2,7 +2,7 @@ const https = require('https');
 
 // ⚠️ SECURITY WARNING: PASTE YOUR TOKEN BELOW FOR THIS TEST ONLY.
 // DELETE THIS FILE IMMEDIATELY AFTER THE TEST.
-const token = "pat-ap1-800c7655-2304-4dd4-be98-184f6a91cbea"; 
+const token = "Put in here"; 
 
 console.log("----- HARDCODED TOKEN TEST -----");
 console.log(`Testing with token ending in: ...${token.slice(-4)}`);
