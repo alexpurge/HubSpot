@@ -115,6 +115,16 @@ export default function App() {
       ]
     },
     {
+      status: 404,
+      label: 'Not Found',
+      meaning: 'The proxy route or API endpoint was not found (often the local server is not running).',
+      fixes: [
+        'Start the local proxy server (npm run server) and keep it running.',
+        'Confirm Vite is proxying /api to http://localhost:5000.',
+        'Verify you are hitting the correct environment (local vs hosted backend).'
+      ]
+    },
+    {
       status: 429,
       label: 'Rate Limited',
       meaning: 'HubSpot is throttling requests due to rate limits.',
@@ -173,6 +183,20 @@ export default function App() {
       addLog(bodyText, 'warning');
     } else {
       addLog('Response Body: <empty>', 'warning');
+    }
+
+    const looksLikeMissingProxy =
+      res.status === 404 &&
+      contentType.includes('text/html') &&
+      bodyText &&
+      bodyText.includes('Cannot POST /api/hubspot/contacts');
+    if (looksLikeMissingProxy) {
+      addLog('Likely cause: the local proxy server is not running or the route is missing.', 'warning');
+      [
+        '➡ Run `npm run server` to start the local proxy on port 5000.',
+        '➡ Keep the proxy running while using the app.',
+        '➡ If hosted, confirm the backend base URL and routes are deployed.'
+      ].forEach((line) => addLog(line, 'warning'));
     }
 
     addLog('Status Code Playbook (common causes & fixes):', 'warning');
