@@ -7,10 +7,10 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-const HUBSPOT_BASE_URL = 'https://api.hubapi.com/crm/v3/objects/contacts';
+const HUBSPOT_BASE_URL = 'https://api.hubapi.com/crm/v3/objects/companies';
 const fallbackToken = process.env.HUBSPOT_ACCESS_TOKEN || process.env.HUBSPOT_API_KEY;
 
-app.get('/api/hubspot/contacts', async (req, res) => {
+app.get('/api/hubspot/companies', async (req, res) => {
   const authHeader = req.get('authorization') || (fallbackToken ? `Bearer ${fallbackToken}` : null);
 
   if (!authHeader) {
