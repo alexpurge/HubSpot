@@ -1,5 +1,16 @@
 # React + Vite
 
+## HubSpot proxy server
+
+HubSpot requests must go through the local Express server. Start both services in separate terminals:
+
+```bash
+npm run server
+npm run dev
+```
+
+The Vite dev server proxies `/api/*` to `http://localhost:3001`, so the UI can call `/api/hubspot/contacts` without CORS issues.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
