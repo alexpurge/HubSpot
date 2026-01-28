@@ -154,11 +154,34 @@ main {
   gap: 8px;
 }
 
+.properties-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.properties-section__title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+  margin-bottom: 10px;
+}
+
+.properties-defaults {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
 .properties-row {
   display: grid;
   grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) auto;
   gap: 8px;
   align-items: center;
+  margin-bottom: 8px;
 }
 
 .properties-row input {
