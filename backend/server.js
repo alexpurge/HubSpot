@@ -2,9 +2,15 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const hubspot = require("@hubspot/api-client");
 const axios = require('axios');
 
 const app = express();
+
+const hs = new hubspot.Client({
+  accessToken: process.env.HUBSPOT_PRIVATE_APP_TOKEN,
+});
+
 const PORT = process.env.PORT || 5000;
 const HUBSPOT_BASE_URL = 'https://api.hubapi.com/crm/v3/objects/contacts';
 const fallbackToken = process.env.HUBSPOT_ACCESS_TOKEN || process.env.HUBSPOT_API_KEY;
