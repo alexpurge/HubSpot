@@ -85,6 +85,41 @@ main {
   cursor: pointer;
 }
 
+.input-mode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  background: #e2e8f0;
+  border-radius: 999px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.mode-toggle button {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #475569;
+}
+
+.mode-toggle button.active {
+  background: #2563eb;
+  color: #fff;
+}
+
 .fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -107,6 +142,43 @@ main {
   border: 1px solid #cbd5f5;
   font-size: 14px;
   background: #fff;
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+.properties-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.properties-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.properties-row input {
+  width: 100%;
+}
+
+.properties-add,
+.properties-remove {
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.properties-remove {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fef2f2;
 }
 
 .result {

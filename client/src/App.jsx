@@ -16,6 +16,41 @@ const safeJsonParse = (value) => {
   return JSON.parse(value);
 };
 
+const parseFormRowsFromJson = (value) => {
+  if (!value) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return [];
+    }
+    return Object.entries(parsed).map(([key, itemValue]) => ({
+      key,
+      value: itemValue ?? '',
+    }));
+  } catch (error) {
+    return [];
+  }
+};
+
+const normalizeFormRows = (rows) => (rows && rows.length ? rows : [{ key: '', value: '' }]);
+
+const buildPropertiesFromRows = (rows) =>
+  (rows || []).reduce((acc, row) => {
+    if (row.key) {
+      acc[row.key] = row.value ?? '';
+    }
+    return acc;
+  }, {});
+
+const resolvePropertiesPayload = (values) => {
+  if (values.propertiesMode === 'form') {
+    return buildPropertiesFromRows(values.propertiesFormRows);
+  }
+  return safeJsonParse(values.properties);
+};
+
 const defaultResultState = {
   request: null,
   response: null,
@@ -51,44 +86,146 @@ const Field = ({ field, value, onChange }) => {
   );
 };
 
-const OperationCard = ({ operation, values, onChange, onExecute, result }) => (
-  <div className="card">
-    <div className="card-header">
-      <h3>{operation.label}</h3>
-      <button type="button" onClick={() => onExecute(operation)}>
-        Run
-      </button>
-    </div>
-    <div className="card-body">
-      <div className="fields">
-        {operation.fields.map((field) => (
-          <Field
-            key={field.name}
-            field={field}
-            value={values[field.name] ?? ''}
-            onChange={onChange}
-          />
+const PropertiesForm = ({ rows, onRowsChange }) => {
+  const safeRows = normalizeFormRows(rows);
+
+  const updateRow = (index, key, value) => {
+    const nextRows = safeRows.map((row, rowIndex) =>
+      rowIndex === index ? { ...row, [key]: value } : row
+    );
+    onRowsChange(nextRows);
+  };
+
+  const addRow = () => {
+    onRowsChange([...safeRows, { key: '', value: '' }]);
+  };
+
+  const removeRow = (index) => {
+    const nextRows = safeRows.filter((_, rowIndex) => rowIndex !== index);
+    onRowsChange(nextRows.length ? nextRows : [{ key: '', value: '' }]);
+  };
+
+  return (
+    <div className="field field--full">
+      <span>Properties (form)</span>
+      <div className="properties-form">
+        {safeRows.map((row, index) => (
+          <div className="properties-row" key={`property-row-${index}`}>
+            <input
+              type="text"
+              value={row.key}
+              onChange={(event) => updateRow(index, 'key', event.target.value)}
+              placeholder="Property name"
+            />
+            <input
+              type="text"
+              value={row.value}
+              onChange={(event) => updateRow(index, 'value', event.target.value)}
+              placeholder="Value"
+            />
+            <button type="button" className="properties-remove" onClick={() => removeRow(index)}>
+              Remove
+            </button>
+          </div>
         ))}
-      </div>
-      <div className="result">
-        <div>
-          <strong>Correlation Id:</strong> {result.correlationId || '—'}
-        </div>
-        <div className="result-block">
-          <span>Request Payload</span>
-          <pre>{result.request ? JSON.stringify(result.request, null, 2) : '—'}</pre>
-        </div>
-        <div className="result-block">
-          <span>Response JSON</span>
-          <pre>{result.response ? JSON.stringify(result.response, null, 2) : '—'}</pre>
-        </div>
-        {result.error && (
-          <div className="error">{result.error}</div>
-        )}
+        <button type="button" className="properties-add" onClick={addRow}>
+          Add property
+        </button>
       </div>
     </div>
-  </div>
-);
+  );
+};
+
+const OperationCard = ({ operation, values, onChange, onChangeValues, onExecute, result }) => {
+  const propertiesField = operation.fields.find((field) => field.kind === 'properties');
+  const otherFields = operation.fields.filter((field) => field.kind !== 'properties');
+  const propertiesMode = values.propertiesMode || 'json';
+
+  const handleModeChange = (mode) => {
+    if (mode === propertiesMode) {
+      return;
+    }
+    const updates = { propertiesMode: mode };
+    if (mode === 'form' && (!values.propertiesFormRows || values.propertiesFormRows.length === 0)) {
+      const seededRows = parseFormRowsFromJson(values.properties);
+      updates.propertiesFormRows = seededRows.length ? seededRows : [{ key: '', value: '' }];
+    }
+    onChangeValues(updates);
+  };
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h3>{operation.label}</h3>
+        <button type="button" onClick={() => onExecute(operation)}>
+          Run
+        </button>
+      </div>
+      {propertiesField && (
+        <div className="input-mode">
+          <span>Input mode</span>
+          <div className="mode-toggle">
+            <button
+              type="button"
+              className={propertiesMode === 'form' ? 'active' : ''}
+              onClick={() => handleModeChange('form')}
+            >
+              Form
+            </button>
+            <button
+              type="button"
+              className={propertiesMode === 'json' ? 'active' : ''}
+              onClick={() => handleModeChange('json')}
+            >
+              JSON
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="card-body">
+        <div className="fields">
+          {otherFields.map((field) => (
+            <Field
+              key={field.name}
+              field={field}
+              value={values[field.name] ?? ''}
+              onChange={onChange}
+            />
+          ))}
+          {propertiesField && propertiesMode === 'json' && (
+            <Field
+              field={propertiesField}
+              value={values[propertiesField.name] ?? ''}
+              onChange={onChange}
+            />
+          )}
+          {propertiesField && propertiesMode === 'form' && (
+            <PropertiesForm
+              rows={values.propertiesFormRows}
+              onRowsChange={(rows) => onChangeValues({ propertiesFormRows: rows })}
+            />
+          )}
+        </div>
+        <div className="result">
+          <div>
+            <strong>Correlation Id:</strong> {result.correlationId || '—'}
+          </div>
+          <div className="result-block">
+            <span>Request Payload</span>
+            <pre>{result.request ? JSON.stringify(result.request, null, 2) : '—'}</pre>
+          </div>
+          <div className="result-block">
+            <span>Response JSON</span>
+            <pre>{result.response ? JSON.stringify(result.response, null, 2) : '—'}</pre>
+          </div>
+          {result.error && (
+            <div className="error">{result.error}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const App = () => {
   const categories = useMemo(
@@ -103,7 +240,7 @@ const App = () => {
             buildRequest: (values) => ({
               method: 'POST',
               path: '/contacts/create',
-              body: { properties: safeJsonParse(values.properties) },
+              body: { properties: resolvePropertiesPayload(values) },
             }),
             fields: [
               {
@@ -112,6 +249,7 @@ const App = () => {
                 type: 'textarea',
                 placeholder: '{"email": "name@example.com", "firstname": "Ada"}',
                 rows: 5,
+                kind: 'properties',
               },
             ],
           },
@@ -143,7 +281,7 @@ const App = () => {
             buildRequest: (values) => ({
               method: 'PATCH',
               path: `/contacts/${values.contactId}`,
-              body: { properties: safeJsonParse(values.properties) },
+              body: { properties: resolvePropertiesPayload(values) },
             }),
             fields: [
               { name: 'contactId', label: 'Contact Id', placeholder: '123' },
@@ -153,6 +291,7 @@ const App = () => {
                 type: 'textarea',
                 placeholder: '{"firstname": "Ada"}',
                 rows: 4,
+                kind: 'properties',
               },
             ],
           },
@@ -162,7 +301,7 @@ const App = () => {
             buildRequest: (values) => ({
               method: 'POST',
               path: '/contacts/upsert',
-              body: { email: values.email, properties: safeJsonParse(values.properties) },
+              body: { email: values.email, properties: resolvePropertiesPayload(values) },
             }),
             fields: [
               { name: 'email', label: 'Email', placeholder: 'name@example.com' },
@@ -172,6 +311,7 @@ const App = () => {
                 type: 'textarea',
                 placeholder: '{"firstname": "Ada"}',
                 rows: 4,
+                kind: 'properties',
               },
             ],
           },
@@ -199,7 +339,7 @@ const App = () => {
             buildRequest: (values) => ({
               method: 'POST',
               path: '/companies/create',
-              body: { properties: safeJsonParse(values.properties) },
+              body: { properties: resolvePropertiesPayload(values) },
             }),
             fields: [
               {
@@ -208,6 +348,7 @@ const App = () => {
                 type: 'textarea',
                 placeholder: '{"name": "Example Co", "domain": "example.com"}',
                 rows: 5,
+                kind: 'properties',
               },
             ],
           },
@@ -242,7 +383,7 @@ const App = () => {
             buildRequest: (values) => ({
               method: 'PATCH',
               path: `/companies/${values.companyId}`,
-              body: { properties: safeJsonParse(values.properties) },
+              body: { properties: resolvePropertiesPayload(values) },
             }),
             fields: [
               { name: 'companyId', label: 'Company Id', placeholder: '123' },
@@ -252,6 +393,7 @@ const App = () => {
                 type: 'textarea',
                 placeholder: '{"name": "New Name"}',
                 rows: 4,
+                kind: 'properties',
               },
             ],
           },
@@ -279,7 +421,7 @@ const App = () => {
             buildRequest: (values) => ({
               method: 'POST',
               path: '/deals/create',
-              body: { properties: safeJsonParse(values.properties) },
+              body: { properties: resolvePropertiesPayload(values) },
             }),
             fields: [
               {
@@ -288,6 +430,7 @@ const App = () => {
                 type: 'textarea',
                 placeholder: '{"dealname": "New Deal", "pipeline": "default", "dealstage": "appointmentscheduled"}',
                 rows: 5,
+                kind: 'properties',
               },
             ],
           },
@@ -309,7 +452,7 @@ const App = () => {
             buildRequest: (values) => ({
               method: 'PATCH',
               path: `/deals/${values.dealId}`,
-              body: { properties: safeJsonParse(values.properties) },
+              body: { properties: resolvePropertiesPayload(values) },
             }),
             fields: [
               { name: 'dealId', label: 'Deal Id', placeholder: '123' },
@@ -319,6 +462,7 @@ const App = () => {
                 type: 'textarea',
                 placeholder: '{"dealname": "Updated"}',
                 rows: 4,
+                kind: 'properties',
               },
             ],
           },
@@ -467,7 +611,7 @@ const App = () => {
             buildRequest: (values) => ({
               method: 'POST',
               path: '/engagements/notes',
-              body: { properties: safeJsonParse(values.properties) },
+              body: { properties: resolvePropertiesPayload(values) },
             }),
             fields: [
               {
@@ -476,6 +620,7 @@ const App = () => {
                 type: 'textarea',
                 placeholder: '{"hs_note_body": "Note text", "hs_timestamp": "1714761600000"}',
                 rows: 5,
+                kind: 'properties',
               },
             ],
           },
@@ -485,7 +630,7 @@ const App = () => {
             buildRequest: (values) => ({
               method: 'POST',
               path: '/engagements/tasks',
-              body: { properties: safeJsonParse(values.properties) },
+              body: { properties: resolvePropertiesPayload(values) },
             }),
             fields: [
               {
@@ -494,6 +639,7 @@ const App = () => {
                 type: 'textarea',
                 placeholder: '{"hs_task_body": "Follow up", "hs_timestamp": "1714761600000"}',
                 rows: 5,
+                kind: 'properties',
               },
             ],
           },
@@ -527,12 +673,12 @@ const App = () => {
 
   const currentCategory = categories.find((category) => category.id === activeCategory) || categories[0];
 
-  const updateFormValue = (operationId, name, value) => {
+  const updateFormValues = (operationId, updates) => {
     setFormState((prev) => ({
       ...prev,
       [operationId]: {
         ...(prev[operationId] || {}),
-        [name]: value,
+        ...updates,
       },
     }));
   };
@@ -673,7 +819,8 @@ const App = () => {
               key={operation.id}
               operation={operation}
               values={formState[operation.id] || {}}
-              onChange={(name, value) => updateFormValue(operation.id, name, value)}
+              onChange={(name, value) => updateFormValues(operation.id, { [name]: value })}
+              onChangeValues={(updates) => updateFormValues(operation.id, updates)}
               onExecute={executeOperation}
               result={results[operation.id] || defaultResultState}
             />
