@@ -4,11 +4,9 @@ import {
   FileSpreadsheet, 
   Play, 
   ShieldCheck, 
-  AlertCircle, 
   CheckCircle2, 
   Loader2, 
   PauseOctagon,
-  Settings,
   ArrowRight
 } from 'lucide-react';
 
@@ -20,10 +18,8 @@ export default function App() {
   // --- STATE ---
   
   // HubSpot State
-  const [hubSpotKey, setHubSpotKey] = useState('');
   const [hubSpotConnected, setHubSpotConnected] = useState(false);
-  const [hubSpotCount, setHubSpotCount] = useState(null);
-  
+
   // Google State
   const [googleClientId, setGoogleClientId] = useState('');
   const [googleApiKey, setGoogleApiKey] = useState('');
@@ -41,14 +37,18 @@ export default function App() {
   const [stats, setStats] = useState({ totalFetched: 0, totalWritten: 0, batches: 0 });
 
   // Settings
-  const [corsProxy, setCorsProxy] = useState(''); // e.g., 'https://cors-anywhere.herokuapp.com/'
-  const [useProxy, setUseProxy] = useState(false);
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
 
   // Refs for async loop control
   const stopSignalRef = useRef(false);
   const logsEndRef = useRef(null);
 
   // --- INITIALIZATION ---
+
+  const addLog = (msg, type = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    setLogs(prev => [...prev, { id: Date.now(), msg, type, timestamp }]);
+  };
 
   useEffect(() => {
     // 1. Load Tailwind CSS (Styles) dynamically
@@ -95,23 +95,42 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const loadGoogleConfig = async () => {
+      const envClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+      const envApiKey = import.meta.env.VITE_GOOGLE_API_KEY || '';
+
+      if (envClientId) setGoogleClientId(envClientId);
+      if (envApiKey) setGoogleApiKey(envApiKey);
+
+      if (envClientId && envApiKey) return;
+
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/config`);
+        if (!response.ok) {
+          throw new Error(`Config fetch failed: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        setGoogleClientId(data.googleClientId || envClientId);
+        setGoogleApiKey(data.googleApiKey || envApiKey);
+      } catch (err) {
+        addLog(`Unable to load Google config from server: ${err.message}`, 'warning');
+      }
+    };
+
+    loadGoogleConfig();
+  }, [apiBaseUrl]);
+
   // Auto-scroll logs
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  // --- LOGIC: LOGGING ---
-
-  const addLog = (msg, type = 'info') => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs(prev => [...prev, { id: Date.now(), msg, type, timestamp }]);
-  };
-
   // --- LOGIC: GOOGLE AUTH ---
 
   const handleGoogleLogin = () => {
     if (!googleClientId) {
-      addLog('Error: Please enter a Google Client ID.', 'error');
+      addLog('Error: Missing Google Client ID from server configuration.', 'error');
       return;
     }
 
@@ -155,27 +174,27 @@ export default function App() {
   const testHubSpot = async () => {
     try {
       addLog('Testing HubSpot connection...');
-      const url = `${useProxy ? corsProxy : ''}https://api.hubapi.com/crm/v3/objects/contacts?limit=1`;
-      
-      const res = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${hubSpotKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const url = new URL('/api/hubspot/contacts', apiBaseUrl || window.location.origin);
+      url.searchParams.set('limit', '1');
 
-      if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}. (Check CORS or Key)`);
+      const res = await fetch(url.toString());
+
+      if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}. (Check server access)`);
       
-      const data = await res.json();
+      await res.json();
       setHubSpotConnected(true);
-      setHubSpotCount('Connected (Total count requires scan)');
       addLog('HubSpot connected successfully!', 'success');
     } catch (err) {
       setHubSpotConnected(false);
       addLog(`HubSpot Connection Failed: ${err.message}`, 'error');
-      addLog('If this is a CORS error, try enabling the Proxy option or use a browser extension.', 'warning');
     }
   };
+
+  useEffect(() => {
+    if (googleToken) {
+      testHubSpot();
+    }
+  }, [googleToken]);
 
   // --- LOGIC: EXPORT PROCESS ---
 
@@ -203,8 +222,8 @@ export default function App() {
   };
 
   const runExport = async () => {
-    if (!hubSpotKey || !googleToken) {
-      addLog('Missing API Keys or Token.', 'error');
+    if (!hubSpotConnected || !googleToken) {
+      addLog('Missing HubSpot connection or Google token.', 'error');
       return;
     }
 
@@ -239,12 +258,12 @@ export default function App() {
 
       while (hasMore && !stopSignalRef.current) {
         // --- A. Fetch from HubSpot ---
-        let url = `${useProxy ? corsProxy : ''}https://api.hubapi.com/crm/v3/objects/contacts?limit=50&properties=email,firstname,lastname,createdate,lastmodifieddate`;
-        if (afterCursor) url += `&after=${afterCursor}`;
+        const url = new URL('/api/hubspot/contacts', apiBaseUrl || window.location.origin);
+        url.searchParams.set('limit', '50');
+        url.searchParams.set('properties', 'email,firstname,lastname,createdate,lastmodifieddate');
+        if (afterCursor) url.searchParams.set('after', afterCursor);
 
-        const hsRes = await fetch(url, {
-          headers: { Authorization: `Bearer ${hubSpotKey}` }
-        });
+        const hsRes = await fetch(url.toString());
 
         if (!hsRes.ok) {
            if (hsRes.status === 429) {
@@ -367,40 +386,13 @@ export default function App() {
               </div>
               
               <div className="space-y-3">
-                <input 
-                  type="password" 
-                  value={hubSpotKey}
-                  onChange={(e) => setHubSpotKey(e.target.value)}
-                  placeholder="Paste HubSpot Private App Access Token"
-                  className="w-full p-2 border rounded border-slate-300 focus:ring-2 focus:ring-orange-500 focus:outline-none font-mono text-sm"
-                />
-                
-                {/* PROXY SETTINGS */}
-                <div className="text-xs text-slate-500 bg-slate-100 p-2 rounded">
-                  <div className="flex items-center gap-2 mb-2">
-                    <input 
-                      type="checkbox" 
-                      id="useProxy"
-                      checked={useProxy}
-                      onChange={(e) => setUseProxy(e.target.checked)}
-                      className="rounded text-orange-600"
-                    />
-                    <label htmlFor="useProxy">Use CORS Proxy (Fixes localhost fetch errors)</label>
-                  </div>
-                  {useProxy && (
-                    <input 
-                      type="text" 
-                      value={corsProxy}
-                      onChange={(e) => setCorsProxy(e.target.value)}
-                      placeholder="https://cors-anywhere.herokuapp.com/"
-                      className="w-full p-1 border rounded text-xs mb-1"
-                    />
-                  )}
+                <div className="text-xs text-slate-500 bg-slate-100 p-3 rounded">
+                  HubSpot credentials are loaded securely from the server.
+                  Click connect to validate access.
                 </div>
 
                 <button 
                   onClick={testHubSpot}
-                  disabled={!hubSpotKey}
                   className="w-full py-2 bg-slate-800 text-white rounded hover:bg-slate-700 disabled:opacity-50 text-sm font-medium"
                 >
                   {hubSpotConnected ? 'Re-Test Connection' : 'Connect HubSpot'}
@@ -420,20 +412,10 @@ export default function App() {
 
               {!googleToken ? (
                 <div className="space-y-3">
-                  <input 
-                    type="text" 
-                    value={googleClientId}
-                    onChange={(e) => setGoogleClientId(e.target.value)}
-                    placeholder="Google Client ID"
-                    className="w-full p-2 border rounded border-slate-300 focus:ring-2 focus:ring-green-500 focus:outline-none font-mono text-sm"
-                  />
-                  <input 
-                    type="password" 
-                    value={googleApiKey}
-                    onChange={(e) => setGoogleApiKey(e.target.value)}
-                    placeholder="Google API Key (Optional but recommended)"
-                    className="w-full p-2 border rounded border-slate-300 focus:ring-2 focus:ring-green-500 focus:outline-none font-mono text-sm"
-                  />
+                  <div className="text-xs text-slate-500 bg-slate-100 p-3 rounded">
+                    Google OAuth configuration is loaded from the server.
+                    If sign-in fails, verify your backend environment variables.
+                  </div>
                   <button 
                     onClick={handleGoogleLogin}
                     disabled={!googleClientId}
