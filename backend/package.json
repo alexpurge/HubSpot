@@ -7,6 +7,7 @@
   "dependencies": {
     "accepts": "^2.0.0",
     "asynckit": "^0.4.0",
+    "@hubspot/api-client": "^12.0.0",
     "axios": "^1.13.4",
     "body-parser": "^2.2.2",
     "bottleneck": "^2.19.5",
