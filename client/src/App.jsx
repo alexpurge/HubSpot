@@ -16,37 +16,55 @@ const safeJsonParse = (value) => {
   return JSON.parse(value);
 };
 
-const parseFormRowsFromJson = (value) => {
+const parseFormStateFromJson = (value, defaults = []) => {
   if (!value) {
-    return [];
+    return { defaultValues: {}, customRows: [] };
   }
   try {
     const parsed = JSON.parse(value);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return [];
+      return { defaultValues: {}, customRows: [] };
     }
-    return Object.entries(parsed).map(([key, itemValue]) => ({
-      key,
-      value: itemValue ?? '',
-    }));
+    const defaultKeys = new Set(defaults.map((item) => item.key));
+    const defaultValues = defaults.reduce((acc, item) => {
+      if (Object.prototype.hasOwnProperty.call(parsed, item.key)) {
+        acc[item.key] = parsed[item.key] ?? '';
+      }
+      return acc;
+    }, {});
+    const customRows = Object.entries(parsed)
+      .filter(([key]) => !defaultKeys.has(key))
+      .map(([key, itemValue]) => ({
+        key,
+        value: itemValue ?? '',
+      }));
+    return { defaultValues, customRows };
   } catch (error) {
-    return [];
+    return { defaultValues: {}, customRows: [] };
   }
 };
 
 const normalizeFormRows = (rows) => (rows && rows.length ? rows : [{ key: '', value: '' }]);
+const normalizeFormValues = (values) => values || {};
 
-const buildPropertiesFromRows = (rows) =>
-  (rows || []).reduce((acc, row) => {
-    if (row.key) {
-      acc[row.key] = row.value ?? '';
+const buildPropertiesFromForm = (values, rows) => {
+  const properties = {};
+  Object.entries(values || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      properties[key] = value;
     }
-    return acc;
-  }, {});
+  });
+  (rows || []).forEach((row) => {
+    if (row.key) {
+      properties[row.key] = row.value ?? '';
+    }
+  });
+  return properties;
+};
 
 const resolvePropertiesPayload = (values) => {
   if (values.propertiesMode === 'form') {
-    return buildPropertiesFromRows(values.propertiesFormRows);
+    return buildPropertiesFromForm(values.propertiesFormValues, values.propertiesFormRows);
   }
   return safeJsonParse(values.properties);
 };
@@ -86,8 +104,9 @@ const Field = ({ field, value, onChange }) => {
   );
 };
 
-const PropertiesForm = ({ rows, onRowsChange }) => {
+const PropertiesForm = ({ defaults, values, onValuesChange, rows, onRowsChange }) => {
   const safeRows = normalizeFormRows(rows);
+  const safeValues = normalizeFormValues(values);
 
   const updateRow = (index, key, value) => {
     const nextRows = safeRows.map((row, rowIndex) =>
@@ -107,30 +126,56 @@ const PropertiesForm = ({ rows, onRowsChange }) => {
 
   return (
     <div className="field field--full">
-      <span>Properties (form)</span>
+      <span>Properties</span>
       <div className="properties-form">
-        {safeRows.map((row, index) => (
-          <div className="properties-row" key={`property-row-${index}`}>
-            <input
-              type="text"
-              value={row.key}
-              onChange={(event) => updateRow(index, 'key', event.target.value)}
-              placeholder="Property name"
-            />
-            <input
-              type="text"
-              value={row.value}
-              onChange={(event) => updateRow(index, 'value', event.target.value)}
-              placeholder="Value"
-            />
-            <button type="button" className="properties-remove" onClick={() => removeRow(index)}>
-              Remove
-            </button>
+        {defaults.length > 0 && (
+          <div className="properties-section">
+            <div className="properties-section__title">Standard properties</div>
+            <div className="properties-defaults">
+              {defaults.map((item) => (
+                <label className="field" key={item.key}>
+                  <span>{item.label}</span>
+                  <input
+                    type="text"
+                    value={safeValues[item.key] ?? ''}
+                    onChange={(event) =>
+                      onValuesChange({
+                        ...safeValues,
+                        [item.key]: event.target.value,
+                      })
+                    }
+                    placeholder={item.placeholder}
+                  />
+                </label>
+              ))}
+            </div>
           </div>
-        ))}
-        <button type="button" className="properties-add" onClick={addRow}>
-          Add property
-        </button>
+        )}
+        <div className="properties-section">
+          <div className="properties-section__title">Custom properties</div>
+          {safeRows.map((row, index) => (
+            <div className="properties-row" key={`property-row-${index}`}>
+              <input
+                type="text"
+                value={row.key}
+                onChange={(event) => updateRow(index, 'key', event.target.value)}
+                placeholder="Property name"
+              />
+              <input
+                type="text"
+                value={row.value}
+                onChange={(event) => updateRow(index, 'value', event.target.value)}
+                placeholder="Value"
+              />
+              <button type="button" className="properties-remove" onClick={() => removeRow(index)}>
+                Remove
+              </button>
+            </div>
+          ))}
+          <button type="button" className="properties-add" onClick={addRow}>
+            Add property
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -140,6 +185,7 @@ const OperationCard = ({ operation, values, onChange, onChangeValues, onExecute,
   const propertiesField = operation.fields.find((field) => field.kind === 'properties');
   const otherFields = operation.fields.filter((field) => field.kind !== 'properties');
   const propertiesMode = values.propertiesMode || 'json';
+  const propertiesDefaults = propertiesField?.defaults || [];
 
   const handleModeChange = (mode) => {
     if (mode === propertiesMode) {
@@ -147,8 +193,11 @@ const OperationCard = ({ operation, values, onChange, onChangeValues, onExecute,
     }
     const updates = { propertiesMode: mode };
     if (mode === 'form' && (!values.propertiesFormRows || values.propertiesFormRows.length === 0)) {
-      const seededRows = parseFormRowsFromJson(values.properties);
-      updates.propertiesFormRows = seededRows.length ? seededRows : [{ key: '', value: '' }];
+      const seededState = parseFormStateFromJson(values.properties, propertiesDefaults);
+      updates.propertiesFormValues = seededState.defaultValues;
+      updates.propertiesFormRows = seededState.customRows.length
+        ? seededState.customRows
+        : [{ key: '', value: '' }];
     }
     onChangeValues(updates);
   };
@@ -201,6 +250,9 @@ const OperationCard = ({ operation, values, onChange, onChangeValues, onExecute,
           )}
           {propertiesField && propertiesMode === 'form' && (
             <PropertiesForm
+              defaults={propertiesDefaults}
+              values={values.propertiesFormValues}
+              onValuesChange={(nextValues) => onChangeValues({ propertiesFormValues: nextValues })}
               rows={values.propertiesFormRows}
               onRowsChange={(rows) => onChangeValues({ propertiesFormRows: rows })}
             />
@@ -250,6 +302,14 @@ const App = () => {
                 placeholder: '{"email": "name@example.com", "firstname": "Ada"}',
                 rows: 5,
                 kind: 'properties',
+                defaults: [
+                  { key: 'email', label: 'Email', placeholder: 'name@example.com' },
+                  { key: 'firstname', label: 'First name', placeholder: 'Ada' },
+                  { key: 'lastname', label: 'Last name', placeholder: 'Lovelace' },
+                  { key: 'phone', label: 'Phone', placeholder: '+1 (555) 000-0000' },
+                  { key: 'company', label: 'Company', placeholder: 'Example Co' },
+                  { key: 'jobtitle', label: 'Job title', placeholder: 'Engineer' },
+                ],
               },
             ],
           },
@@ -292,6 +352,14 @@ const App = () => {
                 placeholder: '{"firstname": "Ada"}',
                 rows: 4,
                 kind: 'properties',
+                defaults: [
+                  { key: 'email', label: 'Email', placeholder: 'name@example.com' },
+                  { key: 'firstname', label: 'First name', placeholder: 'Ada' },
+                  { key: 'lastname', label: 'Last name', placeholder: 'Lovelace' },
+                  { key: 'phone', label: 'Phone', placeholder: '+1 (555) 000-0000' },
+                  { key: 'company', label: 'Company', placeholder: 'Example Co' },
+                  { key: 'jobtitle', label: 'Job title', placeholder: 'Engineer' },
+                ],
               },
             ],
           },
@@ -312,6 +380,14 @@ const App = () => {
                 placeholder: '{"firstname": "Ada"}',
                 rows: 4,
                 kind: 'properties',
+                defaults: [
+                  { key: 'email', label: 'Email', placeholder: 'name@example.com' },
+                  { key: 'firstname', label: 'First name', placeholder: 'Ada' },
+                  { key: 'lastname', label: 'Last name', placeholder: 'Lovelace' },
+                  { key: 'phone', label: 'Phone', placeholder: '+1 (555) 000-0000' },
+                  { key: 'company', label: 'Company', placeholder: 'Example Co' },
+                  { key: 'jobtitle', label: 'Job title', placeholder: 'Engineer' },
+                ],
               },
             ],
           },
@@ -349,6 +425,14 @@ const App = () => {
                 placeholder: '{"name": "Example Co", "domain": "example.com"}',
                 rows: 5,
                 kind: 'properties',
+                defaults: [
+                  { key: 'name', label: 'Company name', placeholder: 'Example Co' },
+                  { key: 'domain', label: 'Domain', placeholder: 'example.com' },
+                  { key: 'phone', label: 'Phone', placeholder: '+1 (555) 000-0000' },
+                  { key: 'city', label: 'City', placeholder: 'San Francisco' },
+                  { key: 'state', label: 'State', placeholder: 'CA' },
+                  { key: 'industry', label: 'Industry', placeholder: 'Software' },
+                ],
               },
             ],
           },
@@ -394,6 +478,14 @@ const App = () => {
                 placeholder: '{"name": "New Name"}',
                 rows: 4,
                 kind: 'properties',
+                defaults: [
+                  { key: 'name', label: 'Company name', placeholder: 'Example Co' },
+                  { key: 'domain', label: 'Domain', placeholder: 'example.com' },
+                  { key: 'phone', label: 'Phone', placeholder: '+1 (555) 000-0000' },
+                  { key: 'city', label: 'City', placeholder: 'San Francisco' },
+                  { key: 'state', label: 'State', placeholder: 'CA' },
+                  { key: 'industry', label: 'Industry', placeholder: 'Software' },
+                ],
               },
             ],
           },
@@ -431,6 +523,13 @@ const App = () => {
                 placeholder: '{"dealname": "New Deal", "pipeline": "default", "dealstage": "appointmentscheduled"}',
                 rows: 5,
                 kind: 'properties',
+                defaults: [
+                  { key: 'dealname', label: 'Deal name', placeholder: 'New Deal' },
+                  { key: 'amount', label: 'Amount', placeholder: '15000' },
+                  { key: 'pipeline', label: 'Pipeline', placeholder: 'default' },
+                  { key: 'dealstage', label: 'Deal stage', placeholder: 'appointmentscheduled' },
+                  { key: 'closedate', label: 'Close date', placeholder: '2024-12-31' },
+                ],
               },
             ],
           },
@@ -463,6 +562,13 @@ const App = () => {
                 placeholder: '{"dealname": "Updated"}',
                 rows: 4,
                 kind: 'properties',
+                defaults: [
+                  { key: 'dealname', label: 'Deal name', placeholder: 'Updated Deal' },
+                  { key: 'amount', label: 'Amount', placeholder: '15000' },
+                  { key: 'pipeline', label: 'Pipeline', placeholder: 'default' },
+                  { key: 'dealstage', label: 'Deal stage', placeholder: 'appointmentscheduled' },
+                  { key: 'closedate', label: 'Close date', placeholder: '2024-12-31' },
+                ],
               },
             ],
           },
@@ -621,6 +727,10 @@ const App = () => {
                 placeholder: '{"hs_note_body": "Note text", "hs_timestamp": "1714761600000"}',
                 rows: 5,
                 kind: 'properties',
+                defaults: [
+                  { key: 'hs_note_body', label: 'Note body', placeholder: 'Note text' },
+                  { key: 'hs_timestamp', label: 'Timestamp (ms)', placeholder: '1714761600000' },
+                ],
               },
             ],
           },
@@ -640,6 +750,11 @@ const App = () => {
                 placeholder: '{"hs_task_body": "Follow up", "hs_timestamp": "1714761600000"}',
                 rows: 5,
                 kind: 'properties',
+                defaults: [
+                  { key: 'hs_task_body', label: 'Task body', placeholder: 'Follow up' },
+                  { key: 'hs_timestamp', label: 'Timestamp (ms)', placeholder: '1714761600000' },
+                  { key: 'hs_task_status', label: 'Task status', placeholder: 'NOT_STARTED' },
+                ],
               },
             ],
           },
