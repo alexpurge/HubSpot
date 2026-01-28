@@ -41,8 +41,7 @@ export default function App() {
   const [stats, setStats] = useState({ totalFetched: 0, totalWritten: 0, batches: 0 });
 
   // Settings
-  const [corsProxy, setCorsProxy] = useState(''); // e.g., 'https://cors-anywhere.herokuapp.com/'
-  const [useProxy, setUseProxy] = useState(false);
+  const hubSpotEndpoint = '/api/hubspot/contacts';
 
   // Refs for async loop control
   const stopSignalRef = useRef(false);
@@ -155,7 +154,7 @@ export default function App() {
   const testHubSpot = async () => {
     try {
       addLog('Testing HubSpot connection...');
-      const url = `${useProxy ? corsProxy : ''}https://api.hubapi.com/crm/v3/objects/contacts?limit=1`;
+      const url = `${hubSpotEndpoint}?limit=1`;
       
       const res = await fetch(url, {
         headers: {
@@ -173,7 +172,7 @@ export default function App() {
     } catch (err) {
       setHubSpotConnected(false);
       addLog(`HubSpot Connection Failed: ${err.message}`, 'error');
-      addLog('If this is a CORS error, try enabling the Proxy option or use a browser extension.', 'warning');
+      addLog('Ensure the server is running and your HubSpot token is valid.', 'warning');
     }
   };
 
@@ -239,7 +238,7 @@ export default function App() {
 
       while (hasMore && !stopSignalRef.current) {
         // --- A. Fetch from HubSpot ---
-        let url = `${useProxy ? corsProxy : ''}https://api.hubapi.com/crm/v3/objects/contacts?limit=50&properties=email,firstname,lastname,createdate,lastmodifieddate`;
+        let url = `${hubSpotEndpoint}?limit=50&properties=email,firstname,lastname,createdate,lastmodifieddate`;
         if (afterCursor) url += `&after=${afterCursor}`;
 
         const hsRes = await fetch(url, {
@@ -375,27 +374,9 @@ export default function App() {
                   className="w-full p-2 border rounded border-slate-300 focus:ring-2 focus:ring-orange-500 focus:outline-none font-mono text-sm"
                 />
                 
-                {/* PROXY SETTINGS */}
                 <div className="text-xs text-slate-500 bg-slate-100 p-2 rounded">
-                  <div className="flex items-center gap-2 mb-2">
-                    <input 
-                      type="checkbox" 
-                      id="useProxy"
-                      checked={useProxy}
-                      onChange={(e) => setUseProxy(e.target.checked)}
-                      className="rounded text-orange-600"
-                    />
-                    <label htmlFor="useProxy">Use CORS Proxy (Fixes localhost fetch errors)</label>
-                  </div>
-                  {useProxy && (
-                    <input 
-                      type="text" 
-                      value={corsProxy}
-                      onChange={(e) => setCorsProxy(e.target.value)}
-                      placeholder="https://cors-anywhere.herokuapp.com/"
-                      className="w-full p-1 border rounded text-xs mb-1"
-                    />
-                  )}
+                  HubSpot requests route through the local server at <span className="font-mono">/api/hubspot</span>.
+                  Make sure the backend is running before connecting.
                 </div>
 
                 <button 
