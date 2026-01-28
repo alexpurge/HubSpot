@@ -14,7 +14,9 @@ const statusLabel = {
 export default function App() {
   const [hubSpotToken, setHubSpotToken] = useState('');
   const [hubSpotStatus, setHubSpotStatus] = useState('idle');
-  const [googleClientId, setGoogleClientId] = useState('');
+  const [googleClientId, setGoogleClientId] = useState(
+    () => import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
+  );
   const [googleStatus, setGoogleStatus] = useState('idle');
   const [logs, setLogs] = useState([]);
   const logsEndRef = useRef(null);
