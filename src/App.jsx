@@ -151,6 +151,223 @@ export default function App() {
 
   // --- LOGIC: HUBSPOT CHECK ---
 
+  const maskToken = (token) => {
+    if (!token) return 'not provided';
+    if (token.length <= 8) return `${token[0]}***${token[token.length - 1]}`;
+    return `${token.slice(0, 4)}…${token.slice(-4)} (len=${token.length})`;
+  };
+
+  const readResponseBody = async (res) => {
+    const text = await res.text();
+    let json = null;
+    if (text) {
+      try {
+        json = JSON.parse(text);
+      } catch {
+        json = null;
+      }
+    }
+    return { text, json };
+  };
+
+  const HUBSPOT_STATUS_GUIDE = [
+    {
+      status: 400,
+      label: 'Bad Request',
+      meaning: 'The request is malformed (invalid query params, unsupported properties, or bad formatting).',
+      fixes: [
+        'Double-check the query params in the URL (limit, after, properties).',
+        'Remove or fix any invalid property names.',
+        'Try a minimal request (limit=1) to confirm basic connectivity.'
+      ]
+    },
+    {
+      status: 401,
+      label: 'Unauthorized',
+      meaning: 'Authentication failed (missing token, invalid token, expired token, or wrong auth type).',
+      fixes: [
+        'Paste a HubSpot Private App Access Token (starts with "pat-")—not an API key.',
+        'Paste the token WITHOUT the "Bearer" prefix (the app adds it).',
+        'Confirm the token is active and not revoked in HubSpot.',
+        'Ensure the Private App has the correct scopes (crm.objects.contacts.read at minimum).',
+        'If using environment variables, verify HUBSPOT_ACCESS_TOKEN is set and restart the server.'
+      ]
+    },
+    {
+      status: 403,
+      label: 'Forbidden',
+      meaning: 'Token is valid, but lacks required scopes or access rights.',
+      fixes: [
+        'Enable crm.objects.contacts.read (and any other needed scopes) on the Private App.',
+        'Re-generate the token if you changed scopes.',
+        'Confirm the app is installed and allowed in the correct HubSpot account.'
+      ]
+    },
+    {
+      status: 404,
+      label: 'Not Found',
+      meaning: 'Endpoint path is wrong or the resource is unavailable.',
+      fixes: [
+        'Verify /api/hubspot/contacts is reachable locally.',
+        'Confirm the proxy server is running and mapped to the correct HubSpot endpoint.',
+        'Check for typos in the route or query params.'
+      ]
+    },
+    {
+      status: 409,
+      label: 'Conflict',
+      meaning: 'A request conflict occurred (often related to writes or state).',
+      fixes: [
+        'Retry after a short delay.',
+        'Check for duplicate or conflicting requests.'
+      ]
+    },
+    {
+      status: 415,
+      label: 'Unsupported Media Type',
+      meaning: 'Content-Type is missing or incorrect.',
+      fixes: [
+        'Ensure Content-Type is application/json for requests with a body.',
+        'Verify the proxy server forwards Content-Type correctly.'
+      ]
+    },
+    {
+      status: 429,
+      label: 'Rate Limited',
+      meaning: 'HubSpot is throttling requests due to rate limits.',
+      fixes: [
+        'Wait and retry with a longer delay between batches.',
+        'Reduce batch size to decrease request frequency.',
+        'Check HubSpot rate limit headers for remaining quota.'
+      ]
+    },
+    {
+      status: 500,
+      label: 'HubSpot Server Error',
+      meaning: 'HubSpot encountered an internal issue.',
+      fixes: [
+        'Retry after a short delay.',
+        'Check https://status.hubspot.com for outages.',
+        'Log the correlation ID from headers for HubSpot support.'
+      ]
+    },
+    {
+      status: 502,
+      label: 'Bad Gateway',
+      meaning: 'Upstream error between your proxy and HubSpot.',
+      fixes: [
+        'Confirm the local server is reachable.',
+        'Retry after a short delay.',
+        'Check local server logs for proxy errors.'
+      ]
+    },
+    {
+      status: 503,
+      label: 'Service Unavailable',
+      meaning: 'HubSpot or the proxy service is temporarily unavailable.',
+      fixes: [
+        'Retry after a short delay.',
+        'Check HubSpot status and local server health.'
+      ]
+    },
+    {
+      status: 504,
+      label: 'Gateway Timeout',
+      meaning: 'Request timed out reaching HubSpot.',
+      fixes: [
+        'Retry with a smaller limit.',
+        'Check network connectivity and proxy server responsiveness.'
+      ]
+    }
+  ];
+
+  const logHubSpotDiagnostics = ({ url, res, bodyText, bodyJson, token }) => {
+    const maskedToken = maskToken(token);
+    const contentType = res.headers.get('content-type') ?? 'unknown';
+    const correlationId =
+      res.headers.get('x-hubspot-correlation-id') ||
+      res.headers.get('x-hubspot-trace-id') ||
+      res.headers.get('x-request-id') ||
+      'not provided';
+    const rateLimitHeaders = [
+      ['x-hubspot-ratelimit-daily', res.headers.get('x-hubspot-ratelimit-daily')],
+      ['x-hubspot-ratelimit-daily-remaining', res.headers.get('x-hubspot-ratelimit-daily-remaining')],
+      ['x-hubspot-ratelimit-secondly', res.headers.get('x-hubspot-ratelimit-secondly')],
+      ['x-hubspot-ratelimit-secondly-remaining', res.headers.get('x-hubspot-ratelimit-secondly-remaining')]
+    ].filter(([, value]) => value);
+
+    addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'warning');
+    addLog('HubSpot Connection Diagnostic Report (Deep Detail)', 'warning');
+    addLog(`Request URL: ${url}`, 'warning');
+    addLog(`HTTP Status: ${res.status} ${res.statusText}`, 'warning');
+    addLog(`Auth Header: Bearer ${maskedToken}`, 'warning');
+    addLog(`Response Content-Type: ${contentType}`, 'warning');
+    addLog(`HubSpot Correlation ID: ${correlationId}`, 'warning');
+
+    if (rateLimitHeaders.length) {
+      addLog('Rate Limit Headers:', 'warning');
+      rateLimitHeaders.forEach(([name, value]) => {
+        addLog(`- ${name}: ${value}`, 'warning');
+      });
+    }
+
+    if (bodyJson) {
+      addLog('Response Body (parsed JSON):', 'warning');
+      addLog(JSON.stringify(bodyJson, null, 2), 'warning');
+    } else if (bodyText) {
+      addLog('Response Body (raw text):', 'warning');
+      addLog(bodyText, 'warning');
+    } else {
+      addLog('Response Body: <empty>', 'warning');
+    }
+
+    addLog('Status Code Playbook (common causes & fixes):', 'warning');
+    HUBSPOT_STATUS_GUIDE.forEach((entry) => {
+      addLog(`• ${entry.status} ${entry.label}: ${entry.meaning}`, 'warning');
+      entry.fixes.forEach((fix) => addLog(`  - ${fix}`, 'warning'));
+    });
+
+    const statusEntry = HUBSPOT_STATUS_GUIDE.find((entry) => entry.status === res.status);
+    if (statusEntry) {
+      addLog(`Focused guidance for ${res.status} ${statusEntry.label}:`, 'warning');
+      statusEntry.fixes.forEach((fix) => addLog(`➡ ${fix}`, 'warning'));
+    }
+
+    addLog('Step-by-step verification checklist:', 'warning');
+    [
+      '1) Confirm the local server is running: `npm run server` (or your deployed backend).',
+      '2) Create a HubSpot Private App (Settings → Integrations → Private Apps).',
+      '3) Enable scopes: crm.objects.contacts.read (minimum for this tool).',
+      '4) Copy the Access Token (starts with "pat-").',
+      '5) Paste the token into this field WITHOUT the "Bearer" prefix.',
+      '6) Click “Connect HubSpot” to run the diagnostic.',
+      '7) If using env vars, set HUBSPOT_ACCESS_TOKEN and restart the server.',
+      '8) Retry after any change—tokens and scopes require re-auth.'
+    ].forEach((line) => addLog(line, 'warning'));
+
+    addLog('If you still see 401:', 'warning');
+    [
+      '• The token may be revoked—create a new token.',
+      '• The token may belong to a different HubSpot account/portal.',
+      '• The proxy may be stripping or altering the Authorization header.',
+      '• A copy/paste error may have added spaces or newlines—re-copy the token.'
+    ].forEach((line) => addLog(line, 'warning'));
+
+    addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'warning');
+  };
+
+  const logHubSpotNetworkGuidance = (err) => {
+    addLog('Network/Proxy Diagnostic Guidance:', 'warning');
+    addLog(`Error message: ${err.message}`, 'warning');
+    [
+      '• Ensure the local proxy server is running (npm run server).',
+      '• Verify the proxy endpoint is reachable at /api/hubspot/contacts.',
+      '• If using a hosted backend, confirm the API base URL and CORS settings.',
+      '• Check browser devtools → Network tab for blocked or failed requests.',
+      '• Verify there is no VPN/firewall blocking api.hubapi.com.'
+    ].forEach((line) => addLog(line, 'warning'));
+  };
+
   const testHubSpot = async () => {
     try {
       addLog('Testing HubSpot connection...');
@@ -163,16 +380,27 @@ export default function App() {
         }
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}. (Check CORS or Key)`);
-      
-      const data = await res.json();
+      const { text, json } = await readResponseBody(res);
+
+      if (!res.ok) {
+        logHubSpotDiagnostics({
+          url,
+          res,
+          bodyText: text,
+          bodyJson: json,
+          token: hubSpotKey
+        });
+        throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+      }
+
+      const data = json || {};
       setHubSpotConnected(true);
       setHubSpotCount('Connected (Total count requires scan)');
       addLog('HubSpot connected successfully!', 'success');
     } catch (err) {
       setHubSpotConnected(false);
       addLog(`HubSpot Connection Failed: ${err.message}`, 'error');
-      addLog('Ensure the server is running and your HubSpot token is valid.', 'warning');
+      logHubSpotNetworkGuidance(err);
     }
   };
 
@@ -374,9 +602,23 @@ export default function App() {
                   className="w-full p-2 border rounded border-slate-300 focus:ring-2 focus:ring-orange-500 focus:outline-none font-mono text-sm"
                 />
                 
-                <div className="text-xs text-slate-500 bg-slate-100 p-2 rounded">
-                  HubSpot requests route through the local server at <span className="font-mono">/api/hubspot</span>.
-                  Make sure the backend is running before connecting.
+                <div className="text-xs text-slate-500 bg-slate-100 p-3 rounded space-y-2">
+                  <p className="font-semibold text-slate-600">HubSpot Source — Step-by-step setup</p>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>Start the local proxy server: <span className="font-mono">npm run server</span>.</li>
+                    <li>In HubSpot, go to <span className="font-semibold">Settings → Integrations → Private Apps</span>.</li>
+                    <li>Create a Private App and enable <span className="font-mono">crm.objects.contacts.read</span> scope.</li>
+                    <li>Copy the Access Token (starts with <span className="font-mono">pat-</span>).</li>
+                    <li>Paste the token below <strong>without</strong> the <span className="font-mono">Bearer</span> prefix.</li>
+                    <li>Click “Connect HubSpot” to run the diagnostic.</li>
+                  </ol>
+                  <p>
+                    Requests route through the local server at <span className="font-mono">/api/hubspot/contacts</span>. If
+                    you prefer env vars, set <span className="font-mono">HUBSPOT_ACCESS_TOKEN</span> and restart the server.
+                  </p>
+                  <p className="text-slate-600">
+                    If you see a 401 error, the diagnostic log will list every possible fix and redundancy step.
+                  </p>
                 </div>
 
                 <button 
