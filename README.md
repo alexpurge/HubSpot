@@ -9,7 +9,7 @@ npm run server
 npm run dev
 ```
 
-The Vite dev server proxies `/api/*` to `http://localhost:3001`, so the UI can call `/api/hubspot/contacts` without CORS issues.
+The Vite dev server proxies `/api/*` to `http://localhost:5000`, so the UI can call `/api/hubspot/contacts` without CORS issues.
 
 If you prefer not to paste the token in the UI, you can set `HUBSPOT_ACCESS_TOKEN` (or `HUBSPOT_API_KEY`) in a `.env` file and restart the server. The server will use that token if the Authorization header is missing.
 
