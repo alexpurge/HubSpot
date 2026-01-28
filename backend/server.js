@@ -22,30 +22,6 @@ const normalizeHubSpotAuth = (authHeader, tokenFallback) => {
 app.use(cors());
 app.use(express.json());
 
-app.get('/api/hubspot/ping', async (req, res) => {
-    const authHeader = normalizeHubSpotAuth(req.get('authorization'), fallbackToken);
-
-    if (!authHeader) {
-        return res.status(401).json({ ok: false, error: 'Missing Authorization header or HubSpot token.' });
-    }
-
-    try {
-        await axios.get(HUBSPOT_BASE_URL, {
-            headers: {
-                Authorization: authHeader,
-                'Content-Type': 'application/json'
-            },
-            params: { limit: 1 }
-        });
-
-        return res.status(200).json({ ok: true });
-    } catch (error) {
-        const status = error.response?.status || 500;
-        const message = error.response?.data || { ok: false, error: 'Failed to reach HubSpot API.' };
-        return res.status(status).json(message);
-    }
-});
-
 app.get('/api/hubspot/contacts', async (req, res) => {
     const authHeader = normalizeHubSpotAuth(req.get('authorization'), fallbackToken);
 
