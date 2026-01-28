@@ -1,29 +1,85 @@
-# React + Vite
+# HubSpot Contact Uploader
 
-## HubSpot proxy server
+This app is intentionally single-purpose: it only validates your HubSpot token and creates **contacts** via the CRM v3 API. Use the UI to run each step and inspect the raw responses so you can pinpoint where failures happen (server, token, or payload).
 
-HubSpot requests must go through the local Express server. Start both services in separate terminals:
+## Quick start
+
+Run the server and UI in two terminals:
 
 ```bash
 npm run server
 npm run dev
 ```
 
-The Vite dev server proxies `/api/*` to `http://localhost:5000`, so the UI can call `/api/hubspot/contacts` without CORS issues.
+Open the app at `http://localhost:5173` and follow the three steps on-screen.
 
-If you prefer not to paste the token in the UI, you can set `HUBSPOT_ACCESS_TOKEN` (or `HUBSPOT_API_KEY`) in a `.env` file and restart the server. The server will use that token if the Authorization header is missing.
+## Step-by-step diagnostics
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+### 1) Server health check
 
-Currently, two official plugins are available:
+The UI calls:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+GET /api/health
+```
 
-## React Compiler
+You should see an `ok` response plus a flag indicating whether a server-side token is set.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 2) Token validation
 
-## Expanding the ESLint configuration
+The UI calls:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+POST /api/hubspot/validate-token
+```
+
+This checks HubSpot access by requesting a single contact (`limit=1`). If this fails, the response panel will contain HubSpot’s error details and headers.
+
+### 3) Create contact
+
+The UI builds the CRM v3 payload:
+
+```json
+{
+  "properties": {
+    "email": "person@company.com",
+    "firstname": "Ada",
+    "lastname": "Lovelace"
+  }
+}
+```
+
+and posts it to:
+
+```bash
+POST /api/hubspot/contacts
+```
+
+## Authentication options
+
+- **Preferred (UI):** Paste a HubSpot Private App token into the UI (it automatically adds the `Bearer` prefix).
+- **Optional (server env):** Set `HUBSPOT_ACCESS_TOKEN` (or `HUBSPOT_API_KEY`) and restart the server. The UI can then run with an empty token field.
+
+Required scopes for the Private App:
+
+- `crm.objects.contacts.read`
+- `crm.objects.contacts.write`
+
+## Manual curl examples
+
+```bash
+curl -s http://localhost:5000/api/health
+```
+
+```bash
+curl -s -X POST http://localhost:5000/api/hubspot/validate-token \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+```bash
+curl -s -X POST http://localhost:5000/api/hubspot/contacts \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"properties":{"email":"person@company.com","firstname":"Ada"}}'
+```
