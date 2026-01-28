@@ -370,7 +370,7 @@ export default function App() {
                   type="password" 
                   value={hubSpotKey}
                   onChange={(e) => setHubSpotKey(e.target.value)}
-                  placeholder="Paste HubSpot Private App Access Token"
+                  placeholder="Paste HubSpot Private App Access Token (without Bearer)"
                   className="w-full p-2 border rounded border-slate-300 focus:ring-2 focus:ring-orange-500 focus:outline-none font-mono text-sm"
                 />
                 
