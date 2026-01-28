@@ -41,6 +41,32 @@ app.get('/api/hubspot/contacts', async (req, res) => {
   }
 });
 
+app.post('/api/hubspot/contacts', async (req, res) => {
+  const authHeader = req.get('authorization') || (fallbackToken ? `Bearer ${fallbackToken}` : null);
+
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Missing Authorization header or HubSpot token.' });
+  }
+
+  try {
+    const hubspotResponse = await fetch(HUBSPOT_BASE_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(req.body ?? {})
+    });
+
+    const responseBody = await hubspotResponse.text();
+    res.status(hubspotResponse.status);
+    res.set('Content-Type', hubspotResponse.headers.get('content-type') ?? 'application/json');
+    return res.send(responseBody);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to reach HubSpot API.' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`HubSpot proxy server listening on port ${port}`);
 });
