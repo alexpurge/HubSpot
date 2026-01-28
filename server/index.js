@@ -8,12 +8,13 @@ app.use(cors());
 app.use(express.json());
 
 const HUBSPOT_BASE_URL = 'https://api.hubapi.com/crm/v3/objects/contacts';
+const fallbackToken = process.env.HUBSPOT_ACCESS_TOKEN || process.env.HUBSPOT_API_KEY;
 
 app.get('/api/hubspot/contacts', async (req, res) => {
-  const authHeader = req.get('authorization');
+  const authHeader = req.get('authorization') || (fallbackToken ? `Bearer ${fallbackToken}` : null);
 
   if (!authHeader) {
-    return res.status(401).json({ error: 'Missing Authorization header.' });
+    return res.status(401).json({ error: 'Missing Authorization header or HubSpot token.' });
   }
 
   const url = new URL(HUBSPOT_BASE_URL);
