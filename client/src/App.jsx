@@ -63,7 +63,8 @@ const buildPropertiesFromForm = (values, rows) => {
 };
 
 const resolvePropertiesPayload = (values) => {
-  if (values.propertiesMode === 'form') {
+  const mode = values.propertiesMode || 'form';
+  if (mode === 'form') {
     return buildPropertiesFromForm(values.propertiesFormValues, values.propertiesFormRows);
   }
   return safeJsonParse(values.properties);
