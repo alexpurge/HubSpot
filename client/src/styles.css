@@ -73,22 +73,24 @@ main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.card-actions {
-  display: flex;
-  align-items: center;
+  margin-bottom: 8px;
   gap: 12px;
 }
 
-.card-header button {
+.card-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.primary-button {
   background: #2563eb;
   color: #fff;
   border: none;
   padding: 8px 16px;
   border-radius: 8px;
   cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .status {
@@ -109,27 +111,28 @@ main {
   color: #991b1b;
 }
 
-.status--idle {
-  background: #e2e8f0;
-  color: #64748b;
-}
-
-.card-toggle {
-  margin-bottom: 12px;
-}
-
 .advanced-toggle {
-  width: 100%;
+  width: fit-content;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: #f8fafc;
+  gap: 8px;
+  background: transparent;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 8px 12px;
+  border-radius: 999px;
+  padding: 6px 12px;
   font-size: 13px;
   cursor: pointer;
   color: #334155;
+  margin-left: auto;
+  margin-bottom: 12px;
+}
+
+.card-header .advanced-toggle {
+  margin-bottom: 0;
+}
+
+.advanced-toggle__icon {
+  font-size: 14px;
 }
 
 .input-mode {
@@ -171,7 +174,7 @@ main {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .field {
@@ -254,6 +257,18 @@ main {
 .advanced {
   border-top: 1px solid #e2e8f0;
   padding-top: 12px;
+}
+
+.card-status {
+  min-height: 20px;
+  margin-bottom: 12px;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
 }
 
 .advanced-content {

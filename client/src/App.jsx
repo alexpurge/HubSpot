@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 const API_BASE = 'http://localhost:5000/api/hubspot';
 
@@ -74,6 +74,7 @@ const defaultResultState = {
   response: null,
   correlationId: null,
   error: null,
+  status: null,
 };
 
 const Field = ({ field, value, onChange }) => {
@@ -198,12 +199,8 @@ const OperationCard = ({ operation, values, onChange, onChangeValues, onExecute,
   const otherFields = operation.fields.filter((field) => field.kind !== 'properties');
   const propertiesMode = values.propertiesMode || 'form';
   const propertiesDefaults = propertiesField?.defaults || [];
-  const statusLabel = result.error ? 'Unsuccessful' : result.response ? 'Successful' : '—';
-  const statusClassName = result.error
-    ? 'status status--error'
-    : result.response
-    ? 'status status--success'
-    : 'status status--idle';
+  const statusLabel = result.status === 'error' ? 'Unsuccessful' : 'Successful';
+  const statusClassName = result.status === 'error' ? 'status status--error' : 'status status--success';
 
   const handleModeChange = (mode) => {
     if (mode === propertiesMode) {
@@ -224,25 +221,22 @@ const OperationCard = ({ operation, values, onChange, onChangeValues, onExecute,
     <div className="card">
       <div className="card-header">
         <h3>{operation.label}</h3>
-        <div className="card-actions">
-          <span className={statusClassName}>Status: {statusLabel}</span>
-          <button type="button" onClick={() => onExecute(operation)}>
-            Submit
-          </button>
-        </div>
-      </div>
-      <div className="card-toggle">
         <button
           type="button"
           className="advanced-toggle"
           onClick={() => setShowAdvanced((prev) => !prev)}
           aria-expanded={showAdvanced}
         >
+          <span className="advanced-toggle__icon" aria-hidden="true">
+            ⚙
+          </span>
           Advanced settings
-          <span aria-hidden="true">{showAdvanced ? '▾' : '▸'}</span>
         </button>
       </div>
       <div className="card-body">
+        <div className="card-status">
+          {result.status && <span className={statusClassName}>{statusLabel}</span>}
+        </div>
         <div className="fields">
           {otherFields.map((field) => (
             <Field
@@ -323,6 +317,11 @@ const OperationCard = ({ operation, values, onChange, onChangeValues, onExecute,
             </div>
           </div>
         )}
+      </div>
+      <div className="card-footer">
+        <button type="button" className="primary-button" onClick={() => onExecute(operation)}>
+          Submit
+        </button>
       </div>
     </div>
   );
@@ -828,6 +827,7 @@ const App = () => {
   const [activeCategory, setActiveCategory] = useState('contacts');
   const [formState, setFormState] = useState({});
   const [results, setResults] = useState({});
+  const statusTimersRef = useRef({});
   const [rawRequest, setRawRequest] = useState({
     method: 'GET',
     path: '/health',
@@ -835,12 +835,9 @@ const App = () => {
   });
   const [rawResult, setRawResult] = useState(defaultResultState);
   const [showRawAdvanced, setShowRawAdvanced] = useState(false);
-  const rawStatusLabel = rawResult.error ? 'Unsuccessful' : rawResult.response ? 'Successful' : '—';
-  const rawStatusClassName = rawResult.error
-    ? 'status status--error'
-    : rawResult.response
-    ? 'status status--success'
-    : 'status status--idle';
+  const rawStatusLabel = rawResult.status === 'error' ? 'Unsuccessful' : 'Successful';
+  const rawStatusClassName = rawResult.status === 'error' ? 'status status--error' : 'status status--success';
+  const rawStatusTimerRef = useRef(null);
 
   const currentCategory = categories.find((category) => category.id === activeCategory) || categories[0];
 
@@ -852,6 +849,39 @@ const App = () => {
         ...updates,
       },
     }));
+  };
+
+  const scheduleStatusReset = (operationId) => {
+    if (statusTimersRef.current[operationId]) {
+      clearTimeout(statusTimersRef.current[operationId]);
+    }
+    statusTimersRef.current[operationId] = setTimeout(() => {
+      setResults((prev) => {
+        const current = prev[operationId];
+        if (!current) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [operationId]: {
+            ...current,
+            status: null,
+          },
+        };
+      });
+    }, 3000);
+  };
+
+  const scheduleRawStatusReset = () => {
+    if (rawStatusTimerRef.current) {
+      clearTimeout(rawStatusTimerRef.current);
+    }
+    rawStatusTimerRef.current = setTimeout(() => {
+      setRawResult((prev) => ({
+        ...prev,
+        status: null,
+      }));
+    }, 3000);
   };
 
   const executeOperation = async (operation) => {
@@ -868,6 +898,7 @@ const App = () => {
           ...defaultResultState,
           correlationId,
           error: `Invalid JSON input: ${error.message}`,
+          status: 'error',
         },
       }));
       return;
@@ -888,6 +919,10 @@ const App = () => {
       },
     }));
 
+    if (statusTimersRef.current[operation.id]) {
+      clearTimeout(statusTimersRef.current[operation.id]);
+    }
+
     try {
       const response = await fetch(`${API_BASE}${requestConfig.path}`, {
         method: requestConfig.method,
@@ -904,14 +939,17 @@ const App = () => {
         [operation.id]: {
           ...prev[operation.id],
           response: data,
+          status: 'success',
         },
       }));
+      scheduleStatusReset(operation.id);
     } catch (error) {
       setResults((prev) => ({
         ...prev,
         [operation.id]: {
           ...prev[operation.id],
           error: error.message,
+          status: 'error',
         },
       }));
     }
@@ -927,6 +965,7 @@ const App = () => {
         ...defaultResultState,
         correlationId,
         error: `Invalid JSON input: ${error.message}`,
+        status: 'error',
       });
       return;
     }
@@ -943,6 +982,10 @@ const App = () => {
       request: requestPayload,
     });
 
+    if (rawStatusTimerRef.current) {
+      clearTimeout(rawStatusTimerRef.current);
+    }
+
     try {
       const response = await fetch(`${API_BASE}${rawRequest.path}`, {
         method: rawRequest.method,
@@ -956,11 +999,14 @@ const App = () => {
       setRawResult((prev) => ({
         ...prev,
         response: data,
+        status: 'success',
       }));
+      scheduleRawStatusReset();
     } catch (error) {
       setRawResult((prev) => ({
         ...prev,
         error: error.message,
+        status: 'error',
       }));
     }
   };
@@ -1002,25 +1048,22 @@ const App = () => {
           <div className="card">
             <div className="card-header">
               <h3>Send Any Backend Request</h3>
-              <div className="card-actions">
-                <span className={rawStatusClassName}>Status: {rawStatusLabel}</span>
-                <button type="button" onClick={executeRawRequest}>
-                  Submit
-                </button>
-              </div>
             </div>
-            <div className="card-toggle">
-              <button
-                type="button"
-                className="advanced-toggle"
-                onClick={() => setShowRawAdvanced((prev) => !prev)}
-                aria-expanded={showRawAdvanced}
-              >
-                Advanced settings
-                <span aria-hidden="true">{showRawAdvanced ? '▾' : '▸'}</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              className="advanced-toggle"
+              onClick={() => setShowRawAdvanced((prev) => !prev)}
+              aria-expanded={showRawAdvanced}
+            >
+              <span className="advanced-toggle__icon" aria-hidden="true">
+                ⚙
+              </span>
+              Advanced settings
+            </button>
             <div className="card-body">
+              <div className="card-status">
+                {rawResult.status && <span className={rawStatusClassName}>{rawStatusLabel}</span>}
+              </div>
               <div className="fields">
                 <label className="field">
                   <span>Method</span>
@@ -1073,6 +1116,11 @@ const App = () => {
                   </div>
                 </div>
               )}
+            </div>
+            <div className="card-footer">
+              <button type="button" className="primary-button" onClick={executeRawRequest}>
+                Submit
+              </button>
             </div>
           </div>
         </section>
