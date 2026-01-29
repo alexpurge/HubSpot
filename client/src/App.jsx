@@ -885,6 +885,41 @@ const App = () => {
     }, 3000);
   };
 
+  const clearEmailFields = (operation, currentValues) => {
+    const updates = {};
+    const hasEmailField = operation.fields.some((field) => field.name === 'email');
+
+    if (hasEmailField) {
+      updates.email = '';
+    }
+
+    if (currentValues.propertiesFormValues && 'email' in currentValues.propertiesFormValues) {
+      updates.propertiesFormValues = {
+        ...currentValues.propertiesFormValues,
+        email: '',
+      };
+    }
+
+    if (currentValues.propertiesFormRows && currentValues.propertiesFormRows.length > 0) {
+      const updatedRows = currentValues.propertiesFormRows.map((row) =>
+        row.key === 'email' ? { ...row, value: '' } : row
+      );
+      updates.propertiesFormRows = updatedRows;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return;
+    }
+
+    setFormState((prev) => ({
+      ...prev,
+      [operation.id]: {
+        ...(prev[operation.id] || {}),
+        ...updates,
+      },
+    }));
+  };
+
   const executeOperation = async (operation) => {
     const values = formState[operation.id] || {};
     const correlationId = createCorrelationId();
@@ -944,6 +979,7 @@ const App = () => {
         },
       }));
       scheduleStatusReset(operation.id);
+      clearEmailFields(operation, values);
     } catch (error) {
       setResults((prev) => ({
         ...prev,
