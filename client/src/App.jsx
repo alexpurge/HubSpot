@@ -885,26 +885,19 @@ const App = () => {
     }, 3000);
   };
 
-  const clearEmailFields = (operation, currentValues) => {
-    const updates = {};
-    const hasEmailField = operation.fields.some((field) => field.name === 'email');
+  const clearOperationFields = (operation) => {
+    const updates = operation.fields.reduce(
+      (acc, field) => ({
+        ...acc,
+        [field.name]: '',
+      }),
+      {}
+    );
+    const hasPropertiesField = operation.fields.some((field) => field.kind === 'properties');
 
-    if (hasEmailField) {
-      updates.email = '';
-    }
-
-    if (currentValues.propertiesFormValues && 'email' in currentValues.propertiesFormValues) {
-      updates.propertiesFormValues = {
-        ...currentValues.propertiesFormValues,
-        email: '',
-      };
-    }
-
-    if (currentValues.propertiesFormRows && currentValues.propertiesFormRows.length > 0) {
-      const updatedRows = currentValues.propertiesFormRows.map((row) =>
-        row.key === 'email' ? { ...row, value: '' } : row
-      );
-      updates.propertiesFormRows = updatedRows;
+    if (hasPropertiesField) {
+      updates.propertiesFormValues = {};
+      updates.propertiesFormRows = [{ key: '', value: '' }];
     }
 
     if (Object.keys(updates).length === 0) {
@@ -979,7 +972,7 @@ const App = () => {
         },
       }));
       scheduleStatusReset(operation.id);
-      clearEmailFields(operation, values);
+      clearOperationFields(operation);
     } catch (error) {
       setResults((prev) => ({
         ...prev,
