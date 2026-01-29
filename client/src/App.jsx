@@ -104,7 +104,16 @@ const Field = ({ field, value, onChange }) => {
   );
 };
 
-const PropertiesForm = ({ defaults, values, onValuesChange, rows, onRowsChange }) => {
+const PropertiesForm = ({
+  defaults,
+  values,
+  onValuesChange,
+  rows,
+  onRowsChange,
+  showStandard = true,
+  showCustom = true,
+  title = 'Properties',
+}) => {
   const safeRows = normalizeFormRows(rows);
   const safeValues = normalizeFormValues(values);
 
@@ -126,9 +135,9 @@ const PropertiesForm = ({ defaults, values, onValuesChange, rows, onRowsChange }
 
   return (
     <div className="field field--full">
-      <span>Properties</span>
+      <span>{title}</span>
       <div className="properties-form">
-        {defaults.length > 0 && (
+        {showStandard && defaults.length > 0 && (
           <div className="properties-section">
             <div className="properties-section__title">Standard properties</div>
             <div className="properties-defaults">
@@ -151,41 +160,50 @@ const PropertiesForm = ({ defaults, values, onValuesChange, rows, onRowsChange }
             </div>
           </div>
         )}
-        <div className="properties-section">
-          <div className="properties-section__title">Custom properties</div>
-          {safeRows.map((row, index) => (
-            <div className="properties-row" key={`property-row-${index}`}>
-              <input
-                type="text"
-                value={row.key}
-                onChange={(event) => updateRow(index, 'key', event.target.value)}
-                placeholder="Property name"
-              />
-              <input
-                type="text"
-                value={row.value}
-                onChange={(event) => updateRow(index, 'value', event.target.value)}
-                placeholder="Value"
-              />
-              <button type="button" className="properties-remove" onClick={() => removeRow(index)}>
-                Remove
-              </button>
-            </div>
-          ))}
-          <button type="button" className="properties-add" onClick={addRow}>
-            Add property
-          </button>
-        </div>
+        {showCustom && (
+          <div className="properties-section">
+            <div className="properties-section__title">Custom properties</div>
+            {safeRows.map((row, index) => (
+              <div className="properties-row" key={`property-row-${index}`}>
+                <input
+                  type="text"
+                  value={row.key}
+                  onChange={(event) => updateRow(index, 'key', event.target.value)}
+                  placeholder="Property name"
+                />
+                <input
+                  type="text"
+                  value={row.value}
+                  onChange={(event) => updateRow(index, 'value', event.target.value)}
+                  placeholder="Value"
+                />
+                <button type="button" className="properties-remove" onClick={() => removeRow(index)}>
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button type="button" className="properties-add" onClick={addRow}>
+              Add property
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 const OperationCard = ({ operation, values, onChange, onChangeValues, onExecute, result }) => {
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const propertiesField = operation.fields.find((field) => field.kind === 'properties');
   const otherFields = operation.fields.filter((field) => field.kind !== 'properties');
-  const propertiesMode = values.propertiesMode || 'json';
+  const propertiesMode = values.propertiesMode || 'form';
   const propertiesDefaults = propertiesField?.defaults || [];
+  const statusLabel = result.error ? 'Unsuccessful' : result.response ? 'Successful' : '—';
+  const statusClassName = result.error
+    ? 'status status--error'
+    : result.response
+    ? 'status status--success'
+    : 'status status--idle';
 
   const handleModeChange = (mode) => {
     if (mode === propertiesMode) {
@@ -206,31 +224,24 @@ const OperationCard = ({ operation, values, onChange, onChangeValues, onExecute,
     <div className="card">
       <div className="card-header">
         <h3>{operation.label}</h3>
-        <button type="button" onClick={() => onExecute(operation)}>
-          Run
+        <div className="card-actions">
+          <span className={statusClassName}>Status: {statusLabel}</span>
+          <button type="button" onClick={() => onExecute(operation)}>
+            Submit
+          </button>
+        </div>
+      </div>
+      <div className="card-toggle">
+        <button
+          type="button"
+          className="advanced-toggle"
+          onClick={() => setShowAdvanced((prev) => !prev)}
+          aria-expanded={showAdvanced}
+        >
+          Advanced settings
+          <span aria-hidden="true">{showAdvanced ? '▾' : '▸'}</span>
         </button>
       </div>
-      {propertiesField && (
-        <div className="input-mode">
-          <span>Input mode</span>
-          <div className="mode-toggle">
-            <button
-              type="button"
-              className={propertiesMode === 'form' ? 'active' : ''}
-              onClick={() => handleModeChange('form')}
-            >
-              Form
-            </button>
-            <button
-              type="button"
-              className={propertiesMode === 'json' ? 'active' : ''}
-              onClick={() => handleModeChange('json')}
-            >
-              JSON
-            </button>
-          </div>
-        </div>
-      )}
       <div className="card-body">
         <div className="fields">
           {otherFields.map((field) => (
@@ -241,13 +252,6 @@ const OperationCard = ({ operation, values, onChange, onChangeValues, onExecute,
               onChange={onChange}
             />
           ))}
-          {propertiesField && propertiesMode === 'json' && (
-            <Field
-              field={propertiesField}
-              value={values[propertiesField.name] ?? ''}
-              onChange={onChange}
-            />
-          )}
           {propertiesField && propertiesMode === 'form' && (
             <PropertiesForm
               defaults={propertiesDefaults}
@@ -255,25 +259,70 @@ const OperationCard = ({ operation, values, onChange, onChangeValues, onExecute,
               onValuesChange={(nextValues) => onChangeValues({ propertiesFormValues: nextValues })}
               rows={values.propertiesFormRows}
               onRowsChange={(rows) => onChangeValues({ propertiesFormRows: rows })}
+              showCustom={false}
+              title="Properties"
             />
           )}
         </div>
-        <div className="result">
-          <div>
-            <strong>Correlation Id:</strong> {result.correlationId || '—'}
+        {showAdvanced && (
+          <div className="advanced">
+            {propertiesField && (
+              <div className="input-mode">
+                <span>Input mode</span>
+                <div className="mode-toggle">
+                  <button
+                    type="button"
+                    className={propertiesMode === 'form' ? 'active' : ''}
+                    onClick={() => handleModeChange('form')}
+                  >
+                    Form
+                  </button>
+                  <button
+                    type="button"
+                    className={propertiesMode === 'json' ? 'active' : ''}
+                    onClick={() => handleModeChange('json')}
+                  >
+                    JSON
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="advanced-content">
+              {propertiesField && propertiesMode === 'json' && (
+                <Field
+                  field={propertiesField}
+                  value={values[propertiesField.name] ?? ''}
+                  onChange={onChange}
+                />
+              )}
+              {propertiesField && propertiesMode === 'form' && (
+                <PropertiesForm
+                  defaults={propertiesDefaults}
+                  values={values.propertiesFormValues}
+                  onValuesChange={(nextValues) => onChangeValues({ propertiesFormValues: nextValues })}
+                  rows={values.propertiesFormRows}
+                  onRowsChange={(rows) => onChangeValues({ propertiesFormRows: rows })}
+                  showStandard={false}
+                  title="Custom properties"
+                />
+              )}
+              <div className="result">
+                <div>
+                  <strong>Correlation Id:</strong> {result.correlationId || '—'}
+                </div>
+                <div className="result-block">
+                  <span>Request Payload</span>
+                  <pre>{result.request ? JSON.stringify(result.request, null, 2) : '—'}</pre>
+                </div>
+                <div className="result-block">
+                  <span>Response JSON</span>
+                  <pre>{result.response ? JSON.stringify(result.response, null, 2) : '—'}</pre>
+                </div>
+                {result.error && <div className="error">{result.error}</div>}
+              </div>
+            </div>
           </div>
-          <div className="result-block">
-            <span>Request Payload</span>
-            <pre>{result.request ? JSON.stringify(result.request, null, 2) : '—'}</pre>
-          </div>
-          <div className="result-block">
-            <span>Response JSON</span>
-            <pre>{result.response ? JSON.stringify(result.response, null, 2) : '—'}</pre>
-          </div>
-          {result.error && (
-            <div className="error">{result.error}</div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );
@@ -785,6 +834,13 @@ const App = () => {
     body: '',
   });
   const [rawResult, setRawResult] = useState(defaultResultState);
+  const [showRawAdvanced, setShowRawAdvanced] = useState(false);
+  const rawStatusLabel = rawResult.error ? 'Unsuccessful' : rawResult.response ? 'Successful' : '—';
+  const rawStatusClassName = rawResult.error
+    ? 'status status--error'
+    : rawResult.response
+    ? 'status status--success'
+    : 'status status--idle';
 
   const currentCategory = categories.find((category) => category.id === activeCategory) || categories[0];
 
@@ -946,8 +1002,22 @@ const App = () => {
           <div className="card">
             <div className="card-header">
               <h3>Send Any Backend Request</h3>
-              <button type="button" onClick={executeRawRequest}>
-                Send
+              <div className="card-actions">
+                <span className={rawStatusClassName}>Status: {rawStatusLabel}</span>
+                <button type="button" onClick={executeRawRequest}>
+                  Submit
+                </button>
+              </div>
+            </div>
+            <div className="card-toggle">
+              <button
+                type="button"
+                className="advanced-toggle"
+                onClick={() => setShowRawAdvanced((prev) => !prev)}
+                aria-expanded={showRawAdvanced}
+              >
+                Advanced settings
+                <span aria-hidden="true">{showRawAdvanced ? '▾' : '▸'}</span>
               </button>
             </div>
             <div className="card-body">
@@ -983,20 +1053,26 @@ const App = () => {
                   />
                 </label>
               </div>
-              <div className="result">
-                <div>
-                  <strong>Correlation Id:</strong> {rawResult.correlationId || '—'}
+              {showRawAdvanced && (
+                <div className="advanced">
+                  <div className="advanced-content">
+                    <div className="result">
+                      <div>
+                        <strong>Correlation Id:</strong> {rawResult.correlationId || '—'}
+                      </div>
+                      <div className="result-block">
+                        <span>Request Payload</span>
+                        <pre>{rawResult.request ? JSON.stringify(rawResult.request, null, 2) : '—'}</pre>
+                      </div>
+                      <div className="result-block">
+                        <span>Response JSON</span>
+                        <pre>{rawResult.response ? JSON.stringify(rawResult.response, null, 2) : '—'}</pre>
+                      </div>
+                      {rawResult.error && <div className="error">{rawResult.error}</div>}
+                    </div>
+                  </div>
                 </div>
-                <div className="result-block">
-                  <span>Request Payload</span>
-                  <pre>{rawResult.request ? JSON.stringify(rawResult.request, null, 2) : '—'}</pre>
-                </div>
-                <div className="result-block">
-                  <span>Response JSON</span>
-                  <pre>{rawResult.response ? JSON.stringify(rawResult.response, null, 2) : '—'}</pre>
-                </div>
-                {rawResult.error && <div className="error">{rawResult.error}</div>}
-              </div>
+              )}
             </div>
           </div>
         </section>
