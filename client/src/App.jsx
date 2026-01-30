@@ -1111,18 +1111,7 @@ const App = () => {
     []
   );
 
-  const [expandedTiles, setExpandedTiles] = useState(new Set());
-  const toggleTile = (id) => {
-    setExpandedTiles((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
+  const [activePage, setActivePage] = useState(null);
   const [formState, setFormState] = useState({});
   const [results, setResults] = useState({});
   const statusTimersRef = useRef({});
@@ -1606,34 +1595,102 @@ const App = () => {
   }
 
   const tileIcons = {
-    'csv-import': '\u{1F4C4}',
-    contacts: '\u{1F464}',
-    companies: '\u{1F3E2}',
-    deals: '\u{1F4B0}',
-    associations: '\u{1F517}',
-    owners: '\u{1F451}',
-    pipelines: '\u{1F6A6}',
-    properties: '\u{1F3F7}',
-    engagements: '\u{1F4AC}',
-    webhooks: '\u{1F50C}',
-    'raw-request': '\u{1F6E0}',
-    log: '\u{1F4CB}',
+    'csv-import': (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="12" y1="18" x2="12" y2="12" />
+        <polyline points="9 15 12 12 15 15" />
+      </svg>
+    ),
+    contacts: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+    companies: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="2" width="16" height="20" rx="2" />
+        <line x1="9" y1="6" x2="9" y2="6.01" />
+        <line x1="15" y1="6" x2="15" y2="6.01" />
+        <line x1="9" y1="10" x2="9" y2="10.01" />
+        <line x1="15" y1="10" x2="15" y2="10.01" />
+        <line x1="9" y1="14" x2="9" y2="14.01" />
+        <line x1="15" y1="14" x2="15" y2="14.01" />
+        <path d="M9 18h6" />
+      </svg>
+    ),
+    deals: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    ),
+    associations: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </svg>
+    ),
+    owners: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="8.5" cy="7" r="4" />
+        <polyline points="17 11 19 13 23 9" />
+      </svg>
+    ),
+    pipelines: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="4" rx="1" />
+        <rect x="4" y="10" width="16" height="4" rx="1" />
+        <rect x="6" y="17" width="12" height="4" rx="1" />
+      </svg>
+    ),
+    properties: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
+      </svg>
+    ),
+    engagements: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+    webhooks: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      </svg>
+    ),
+    'raw-request': (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="16 18 22 12 16 6" />
+        <polyline points="8 6 2 12 8 18" />
+      </svg>
+    ),
+    log: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="8" y1="6" x2="21" y2="6" />
+        <line x1="8" y1="12" x2="21" y2="12" />
+        <line x1="8" y1="18" x2="21" y2="18" />
+        <line x1="3" y1="6" x2="3.01" y2="6" />
+        <line x1="3" y1="12" x2="3.01" y2="12" />
+        <line x1="3" y1="18" x2="3.01" y2="18" />
+      </svg>
+    ),
   };
 
-  const renderTile = (id, label, badgeCount, content) => {
-    const expanded = expandedTiles.has(id);
-    return (
-      <div key={id} className={`tile${expanded ? ' tile--expanded' : ''}`}>
-        <button type="button" className="tile-header" onClick={() => toggleTile(id)}>
-          <span className="tile-icon">{tileIcons[id] || ''}</span>
-          <span className="tile-label">{label}</span>
-          {badgeCount > 0 && <span className="tile-badge">{badgeCount}</span>}
-          <span className={`tile-chevron${expanded ? ' tile-chevron--open' : ''}`}>&#9662;</span>
-        </button>
-        {expanded && <div className="tile-body">{content}</div>}
-      </div>
-    );
-  };
+  const pageLabel = (() => {
+    if (!activePage) return '';
+    if (activePage === 'csv-import') return 'CSV Import';
+    if (activePage === 'raw-request') return 'Raw Request';
+    if (activePage === 'log') return 'Log';
+    const cat = categories.find((c) => c.id === activePage);
+    return cat ? cat.label : '';
+  })();
+
+  const activeCategory = activePage ? categories.find((c) => c.id === activePage) : null;
 
   return (
     <div className="app">
@@ -1648,348 +1705,379 @@ const App = () => {
           </button>
         </div>
       </header>
-      <div className="tile-grid">
-        {/* CSV Import tile */}
-        {renderTile('csv-import', 'CSV Import', 0, (
-          <div className="card">
-            <div className="card-header">
-              <h3>Import from CSV</h3>
-            </div>
-            <div className="fields">
-              <div className="field">
-                <label>Object type</label>
-                <select
-                  value={csvTarget}
-                  onChange={(e) => setCsvTarget(e.target.value)}
-                  disabled={csvStatus?.state === 'uploading'}
-                >
-                  {CSV_TARGETS.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
 
-            {(!csvStatus || csvStatus.state === 'idle') && (
-              <div
-                className={`csv-dropzone csv-dropzone--main${csvDragOver ? ' csv-dropzone--active' : ''}`}
-                onDragOver={handleCsvDragOver}
-                onDragLeave={handleCsvDragLeave}
-                onDrop={handleCsvDrop}
-                onClick={() => csvInputRef.current?.click()}
-              >
-                <span>Drop CSV file here or click to browse</span>
-                <input
-                  ref={csvInputRef}
-                  type="file"
-                  accept=".csv"
-                  style={{ display: 'none' }}
-                  onChange={handleCsvFileSelect}
-                />
-              </div>
-            )}
-
-            {(!csvStatus || csvStatus.state === 'idle' || csvStatus.state === 'done' || csvStatus.state === 'error') && (
-              <div className="sheets-import">
-                <div className="sheets-import__header">
-                  <span>Or import from Google Sheets</span>
-                  <button type="button" className="sheets-refresh-button" onClick={loadGoogleSheets} disabled={sheetsLoading}>
-                    {sheetsLoading ? 'Loading...' : 'Load My Sheets'}
-                  </button>
-                </div>
-                {sheetsError && <div className="sheets-error">{sheetsError}</div>}
-                {sheetsList.length > 0 && (
-                  <div className="sheets-selectors">
-                    <label className="field">
-                      <span>Select spreadsheet</span>
-                      <select
-                        value={selectedSheet}
-                        onChange={(e) => {
-                          setSelectedSheet(e.target.value);
-                          setSelectedTab('');
-                          setSheetTabs([]);
-                          if (e.target.value) loadSheetTabs(e.target.value);
-                        }}
-                      >
-                        <option value="">Choose a spreadsheet...</option>
-                        {sheetsList.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
-                    </label>
-                    {sheetTabs.length > 0 && (
-                      <label className="field">
-                        <span>Select sheet tab</span>
-                        <select value={selectedTab} onChange={(e) => setSelectedTab(e.target.value)}>
-                          {sheetTabs.map((t) => (
-                            <option key={t.sheetId} value={t.title}>{t.title}</option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                    {selectedSheet && selectedTab && (
-                      <button
-                        type="button"
-                        className="primary-button"
-                        onClick={importFromGoogleSheet}
-                        disabled={csvStatus?.state === 'uploading'}
-                      >
-                        Import from Sheet
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {csvStatus?.state === 'parsing' && (
-              <div className="csv-main-status">Reading {csvStatus.fileName}...</div>
-            )}
-
-            {csvStatus?.state === 'uploading' && (
-              <div className="csv-main-status">
-                <div className="csv-progress-label">
-                  Uploading: {csvStatus.completed} / {csvStatus.total}
-                  {csvStatus.warned > 0 && (
-                    <span className="csv-warned"> ({csvStatus.warned} with warnings)</span>
-                  )}
-                  {csvStatus.failed > 0 && (
-                    <span className="csv-failed"> ({csvStatus.failed} failed)</span>
-                  )}
-                </div>
-                <div className="csv-progress-bar csv-progress-bar--main">
-                  <div
-                    className="csv-progress-fill"
-                    style={{ width: `${(csvStatus.completed / csvStatus.total) * 100}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {csvStatus?.state === 'done' && (
-              <div className="csv-main-status">
-                <div className="csv-done-label">
-                  {(() => {
-                    const clean = csvStatus.completed - csvStatus.failed - csvStatus.warned;
-                    const parts = [];
-                    if (clean > 0) parts.push(`${clean} succeeded`);
-                    if (csvStatus.warned > 0) parts.push(`${csvStatus.warned} succeeded with warnings`);
-                    if (csvStatus.failed > 0) parts.push(`${csvStatus.failed} failed`);
-                    if (parts.length === 0) parts.push('0 succeeded');
-                    return parts.map((text, idx) => {
-                      const isWarned = text.includes('warnings');
-                      const isFailed = text.includes('failed');
-                      const separator = idx > 0 ? ', ' : '';
-                      if (isWarned) return <span key={idx}><span>{separator}</span><span className="csv-warned">{text}</span></span>;
-                      if (isFailed) return <span key={idx}><span>{separator}</span><span className="csv-failed">{text}</span></span>;
-                      return <span key={idx}>{separator}{text}</span>;
-                    });
-                  })()}
-                </div>
-                {csvStatus.warnings.length > 0 && (
-                  <div className="csv-warnings csv-warnings--main">
-                    {csvStatus.warnings.map((w, i) => (
-                      <div key={i} className="csv-warning-item">
-                        Row {w.row}: {w.message}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {csvStatus.errors.length > 0 && (
-                  <div className="csv-errors csv-errors--main">
-                    {csvStatus.errors.map((err, i) => (
-                      <div key={i} className="csv-error-item">
-                        Row {err.row}: {err.message}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={() => setCsvStatus(null)}
-                >
-                  Import Another
-                </button>
-              </div>
-            )}
-
-            {csvStatus?.state === 'error' && (
-              <div className="csv-main-status">
-                <div className="csv-error-msg">{csvStatus.errors[0]?.message}</div>
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={() => setCsvStatus(null)}
-                >
-                  Try Again
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-
-        {/* Category tiles */}
-        {categories.map((category) =>
-          renderTile(category.id, category.label, category.operations.length, (
-            <>
-              {category.operations.map((operation) => (
-                <OperationCard
-                  key={operation.id}
-                  operation={operation}
-                  values={formState[operation.id] || {}}
-                  onChange={(name, value) => updateFormValues(operation.id, { [name]: value })}
-                  onChangeValues={(updates) => updateFormValues(operation.id, updates)}
-                  onExecute={executeOperation}
-                  result={results[operation.id] || defaultResultState}
-                />
-              ))}
-            </>
-          ))
-        )}
-
-        {/* Raw Request tile */}
-        {renderTile('raw-request', 'Raw Request', 0, (
-          <div className="card">
-            <div className="card-header">
-              <h3>Send Any Backend Request</h3>
-            </div>
-            <button
-              type="button"
-              className="advanced-toggle"
-              onClick={() => setShowRawAdvanced((prev) => !prev)}
-              aria-expanded={showRawAdvanced}
-            >
-              <span className="advanced-toggle__icon" aria-hidden="true">
-                ⚙
-              </span>
-              Advanced settings
+      {activePage ? (
+        <div className="sub-page">
+          <div className="sub-page-header">
+            <button type="button" className="back-button" onClick={() => setActivePage(null)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Back
             </button>
-            <div className="card-body">
-              <div className="card-status">
-                {rawResult.status && <span className={rawStatusClassName}>{rawStatusLabel}</span>}
-              </div>
-              <div className="fields">
-                <label className="field">
-                  <span>Method</span>
-                  <select
-                    value={rawRequest.method}
-                    onChange={(event) => setRawRequest((prev) => ({ ...prev, method: event.target.value }))}
+            <h2>{pageLabel}</h2>
+          </div>
+          <div className="sub-page-content">
+            {/* Category pages */}
+            {activeCategory && activeCategory.operations.map((operation) => (
+              <OperationCard
+                key={operation.id}
+                operation={operation}
+                values={formState[operation.id] || {}}
+                onChange={(name, value) => updateFormValues(operation.id, { [name]: value })}
+                onChangeValues={(updates) => updateFormValues(operation.id, updates)}
+                onExecute={executeOperation}
+                result={results[operation.id] || defaultResultState}
+              />
+            ))}
+
+            {/* CSV Import page */}
+            {activePage === 'csv-import' && (
+              <div className="card">
+                <div className="card-header">
+                  <h3>Import from CSV</h3>
+                </div>
+                <div className="fields">
+                  <div className="field">
+                    <label>Object type</label>
+                    <select
+                      value={csvTarget}
+                      onChange={(e) => setCsvTarget(e.target.value)}
+                      disabled={csvStatus?.state === 'uploading'}
+                    >
+                      {CSV_TARGETS.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {(!csvStatus || csvStatus.state === 'idle') && (
+                  <div
+                    className={`csv-dropzone csv-dropzone--main${csvDragOver ? ' csv-dropzone--active' : ''}`}
+                    onDragOver={handleCsvDragOver}
+                    onDragLeave={handleCsvDragLeave}
+                    onDrop={handleCsvDrop}
+                    onClick={() => csvInputRef.current?.click()}
                   >
-                    <option value="GET">GET</option>
-                    <option value="POST">POST</option>
-                    <option value="PATCH">PATCH</option>
-                    <option value="DELETE">DELETE</option>
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Path (relative to /api/hubspot)</span>
-                  <input
-                    type="text"
-                    value={rawRequest.path}
-                    onChange={(event) => setRawRequest((prev) => ({ ...prev, path: event.target.value }))}
-                    placeholder="/contacts"
-                  />
-                </label>
-                <label className="field">
-                  <span>JSON Body</span>
-                  <textarea
-                    value={rawRequest.body}
-                    onChange={(event) => setRawRequest((prev) => ({ ...prev, body: event.target.value }))}
-                    placeholder='{"key":"value"}'
-                    rows={4}
-                  />
-                </label>
-              </div>
-              {showRawAdvanced && (
-                <div className="advanced">
-                  <div className="advanced-content">
-                    <div className="result">
-                      <div>
-                        <strong>Correlation Id:</strong> {rawResult.correlationId || '—'}
+                    <span>Drop CSV file here or click to browse</span>
+                    <input
+                      ref={csvInputRef}
+                      type="file"
+                      accept=".csv"
+                      style={{ display: 'none' }}
+                      onChange={handleCsvFileSelect}
+                    />
+                  </div>
+                )}
+
+                {(!csvStatus || csvStatus.state === 'idle' || csvStatus.state === 'done' || csvStatus.state === 'error') && (
+                  <div className="sheets-import">
+                    <div className="sheets-import__header">
+                      <span>Or import from Google Sheets</span>
+                      <button type="button" className="sheets-refresh-button" onClick={loadGoogleSheets} disabled={sheetsLoading}>
+                        {sheetsLoading ? 'Loading...' : 'Load My Sheets'}
+                      </button>
+                    </div>
+                    {sheetsError && <div className="sheets-error">{sheetsError}</div>}
+                    {sheetsList.length > 0 && (
+                      <div className="sheets-selectors">
+                        <label className="field">
+                          <span>Select spreadsheet</span>
+                          <select
+                            value={selectedSheet}
+                            onChange={(e) => {
+                              setSelectedSheet(e.target.value);
+                              setSelectedTab('');
+                              setSheetTabs([]);
+                              if (e.target.value) loadSheetTabs(e.target.value);
+                            }}
+                          >
+                            <option value="">Choose a spreadsheet...</option>
+                            {sheetsList.map((s) => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                        </label>
+                        {sheetTabs.length > 0 && (
+                          <label className="field">
+                            <span>Select sheet tab</span>
+                            <select value={selectedTab} onChange={(e) => setSelectedTab(e.target.value)}>
+                              {sheetTabs.map((t) => (
+                                <option key={t.sheetId} value={t.title}>{t.title}</option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                        {selectedSheet && selectedTab && (
+                          <button
+                            type="button"
+                            className="primary-button"
+                            onClick={importFromGoogleSheet}
+                            disabled={csvStatus?.state === 'uploading'}
+                          >
+                            Import from Sheet
+                          </button>
+                        )}
                       </div>
-                      <div className="result-block">
-                        <span>Request Payload</span>
-                        <pre>{rawResult.request ? JSON.stringify(rawResult.request, null, 2) : '—'}</pre>
-                      </div>
-                      <div className="result-block">
-                        <span>Response JSON</span>
-                        <pre>{rawResult.response ? JSON.stringify(rawResult.response, null, 2) : '—'}</pre>
-                      </div>
-                      {rawResult.error && <div className="error">{rawResult.error}</div>}
+                    )}
+                  </div>
+                )}
+
+                {csvStatus?.state === 'parsing' && (
+                  <div className="csv-main-status">Reading {csvStatus.fileName}...</div>
+                )}
+
+                {csvStatus?.state === 'uploading' && (
+                  <div className="csv-main-status">
+                    <div className="csv-progress-label">
+                      Uploading: {csvStatus.completed} / {csvStatus.total}
+                      {csvStatus.warned > 0 && (
+                        <span className="csv-warned"> ({csvStatus.warned} with warnings)</span>
+                      )}
+                      {csvStatus.failed > 0 && (
+                        <span className="csv-failed"> ({csvStatus.failed} failed)</span>
+                      )}
+                    </div>
+                    <div className="csv-progress-bar csv-progress-bar--main">
+                      <div
+                        className="csv-progress-fill"
+                        style={{ width: `${(csvStatus.completed / csvStatus.total) * 100}%` }}
+                      />
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-            <div className="card-footer">
-              <button type="button" className="primary-button" onClick={executeRawRequest}>
-                Submit
-              </button>
-            </div>
-          </div>
-        ))}
+                )}
 
-        {/* Log tile */}
-        {renderTile('log', 'Log', logEntries.length, (
-          <div className="card">
-            <div className="card-header">
-              <h3>Activity Log ({logEntries.length} entries)</h3>
-              {logEntries.length > 0 && (
+                {csvStatus?.state === 'done' && (
+                  <div className="csv-main-status">
+                    <div className="csv-done-label">
+                      {(() => {
+                        const clean = csvStatus.completed - csvStatus.failed - csvStatus.warned;
+                        const parts = [];
+                        if (clean > 0) parts.push(`${clean} succeeded`);
+                        if (csvStatus.warned > 0) parts.push(`${csvStatus.warned} succeeded with warnings`);
+                        if (csvStatus.failed > 0) parts.push(`${csvStatus.failed} failed`);
+                        if (parts.length === 0) parts.push('0 succeeded');
+                        return parts.map((text, idx) => {
+                          const isWarned = text.includes('warnings');
+                          const isFailed = text.includes('failed');
+                          const separator = idx > 0 ? ', ' : '';
+                          if (isWarned) return <span key={idx}><span>{separator}</span><span className="csv-warned">{text}</span></span>;
+                          if (isFailed) return <span key={idx}><span>{separator}</span><span className="csv-failed">{text}</span></span>;
+                          return <span key={idx}>{separator}{text}</span>;
+                        });
+                      })()}
+                    </div>
+                    {csvStatus.warnings.length > 0 && (
+                      <div className="csv-warnings csv-warnings--main">
+                        {csvStatus.warnings.map((w, i) => (
+                          <div key={i} className="csv-warning-item">
+                            Row {w.row}: {w.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {csvStatus.errors.length > 0 && (
+                      <div className="csv-errors csv-errors--main">
+                        {csvStatus.errors.map((err, i) => (
+                          <div key={i} className="csv-error-item">
+                            Row {err.row}: {err.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={() => setCsvStatus(null)}
+                    >
+                      Import Another
+                    </button>
+                  </div>
+                )}
+
+                {csvStatus?.state === 'error' && (
+                  <div className="csv-main-status">
+                    <div className="csv-error-msg">{csvStatus.errors[0]?.message}</div>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={() => setCsvStatus(null)}
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Raw Request page */}
+            {activePage === 'raw-request' && (
+              <div className="card">
+                <div className="card-header">
+                  <h3>Send Any Backend Request</h3>
+                </div>
                 <button
                   type="button"
-                  className="properties-remove"
-                  onClick={() => setLogEntries([])}
+                  className="advanced-toggle"
+                  onClick={() => setShowRawAdvanced((prev) => !prev)}
+                  aria-expanded={showRawAdvanced}
                 >
-                  Clear
+                  <span className="advanced-toggle__icon" aria-hidden="true">
+                    &#9881;
+                  </span>
+                  Advanced settings
                 </button>
-              )}
-            </div>
-            <div className="log-entries">
-              {logEntries.length === 0 && (
-                <div className="log-empty">No activity recorded yet.</div>
-              )}
-              {logEntries.map((entry) => (
-                <div key={entry.id} className={`log-entry log-entry--${entry.status}`}>
-                  <div className="log-entry__header">
-                    <span className="log-entry__time">
-                      {entry.timestamp.toLocaleTimeString()}
-                    </span>
-                    <span className={`log-entry__method log-entry__method--${entry.method.toLowerCase()}`}>
-                      {entry.method}
-                    </span>
-                    <span className="log-entry__path">{entry.path}</span>
-                    <span className={`log-entry__status log-entry__status--${entry.status}`}>
-                      {entry.status}
-                    </span>
-                    {entry.durationMs != null && (
-                      <span className="log-entry__duration">{entry.durationMs}ms</span>
-                    )}
+                <div className="card-body">
+                  <div className="card-status">
+                    {rawResult.status && <span className={rawStatusClassName}>{rawStatusLabel}</span>}
                   </div>
-                  {entry.error && (
-                    <div className="log-entry__error">{entry.error}</div>
-                  )}
-                  {entry.correlationId && (
-                    <div className="log-entry__meta">Correlation ID: {entry.correlationId}</div>
-                  )}
-                  {entry.requestBody && (
-                    <details className="log-entry__details">
-                      <summary>Request Body</summary>
-                      <pre>{JSON.stringify(entry.requestBody, null, 2)}</pre>
-                    </details>
-                  )}
-                  {entry.response && (
-                    <details className="log-entry__details">
-                      <summary>Response</summary>
-                      <pre>{JSON.stringify(entry.response, null, 2)}</pre>
-                    </details>
+                  <div className="fields">
+                    <label className="field">
+                      <span>Method</span>
+                      <select
+                        value={rawRequest.method}
+                        onChange={(event) => setRawRequest((prev) => ({ ...prev, method: event.target.value }))}
+                      >
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                        <option value="PATCH">PATCH</option>
+                        <option value="DELETE">DELETE</option>
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Path (relative to /api/hubspot)</span>
+                      <input
+                        type="text"
+                        value={rawRequest.path}
+                        onChange={(event) => setRawRequest((prev) => ({ ...prev, path: event.target.value }))}
+                        placeholder="/contacts"
+                      />
+                    </label>
+                    <label className="field">
+                      <span>JSON Body</span>
+                      <textarea
+                        value={rawRequest.body}
+                        onChange={(event) => setRawRequest((prev) => ({ ...prev, body: event.target.value }))}
+                        placeholder='{"key":"value"}'
+                        rows={4}
+                      />
+                    </label>
+                  </div>
+                  {showRawAdvanced && (
+                    <div className="advanced">
+                      <div className="advanced-content">
+                        <div className="result">
+                          <div>
+                            <strong>Correlation Id:</strong> {rawResult.correlationId || '\u2014'}
+                          </div>
+                          <div className="result-block">
+                            <span>Request Payload</span>
+                            <pre>{rawResult.request ? JSON.stringify(rawResult.request, null, 2) : '\u2014'}</pre>
+                          </div>
+                          <div className="result-block">
+                            <span>Response JSON</span>
+                            <pre>{rawResult.response ? JSON.stringify(rawResult.response, null, 2) : '\u2014'}</pre>
+                          </div>
+                          {rawResult.error && <div className="error">{rawResult.error}</div>}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
-              ))}
-            </div>
+                <div className="card-footer">
+                  <button type="button" className="primary-button" onClick={executeRawRequest}>
+                    Submit
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Log page */}
+            {activePage === 'log' && (
+              <div className="card">
+                <div className="card-header">
+                  <h3>Activity Log ({logEntries.length} entries)</h3>
+                  {logEntries.length > 0 && (
+                    <button
+                      type="button"
+                      className="properties-remove"
+                      onClick={() => setLogEntries([])}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="log-entries">
+                  {logEntries.length === 0 && (
+                    <div className="log-empty">No activity recorded yet.</div>
+                  )}
+                  {logEntries.map((entry) => (
+                    <div key={entry.id} className={`log-entry log-entry--${entry.status}`}>
+                      <div className="log-entry__header">
+                        <span className="log-entry__time">
+                          {entry.timestamp.toLocaleTimeString()}
+                        </span>
+                        <span className={`log-entry__method log-entry__method--${entry.method.toLowerCase()}`}>
+                          {entry.method}
+                        </span>
+                        <span className="log-entry__path">{entry.path}</span>
+                        <span className={`log-entry__status log-entry__status--${entry.status}`}>
+                          {entry.status}
+                        </span>
+                        {entry.durationMs != null && (
+                          <span className="log-entry__duration">{entry.durationMs}ms</span>
+                        )}
+                      </div>
+                      {entry.error && (
+                        <div className="log-entry__error">{entry.error}</div>
+                      )}
+                      {entry.correlationId && (
+                        <div className="log-entry__meta">Correlation ID: {entry.correlationId}</div>
+                      )}
+                      {entry.requestBody && (
+                        <details className="log-entry__details">
+                          <summary>Request Body</summary>
+                          <pre>{JSON.stringify(entry.requestBody, null, 2)}</pre>
+                        </details>
+                      )}
+                      {entry.response && (
+                        <details className="log-entry__details">
+                          <summary>Response</summary>
+                          <pre>{JSON.stringify(entry.response, null, 2)}</pre>
+                        </details>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="tile-grid">
+          <button type="button" className="tile" onClick={() => setActivePage('csv-import')}>
+            <span className="tile-icon">{tileIcons['csv-import']}</span>
+            <span className="tile-label">CSV Import</span>
+          </button>
+          {categories.map((category) => (
+            <button key={category.id} type="button" className="tile" onClick={() => setActivePage(category.id)}>
+              <span className="tile-icon">{tileIcons[category.id]}</span>
+              <span className="tile-label">{category.label}</span>
+              <span className="tile-badge">{category.operations.length}</span>
+            </button>
+          ))}
+          <button type="button" className="tile" onClick={() => setActivePage('raw-request')}>
+            <span className="tile-icon">{tileIcons['raw-request']}</span>
+            <span className="tile-label">Raw Request</span>
+          </button>
+          <button type="button" className="tile" onClick={() => setActivePage('log')}>
+            <span className="tile-icon">{tileIcons.log}</span>
+            <span className="tile-label">Log</span>
+            {logEntries.length > 0 && <span className="tile-badge">{logEntries.length}</span>}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

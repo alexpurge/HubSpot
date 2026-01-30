@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const hubspotRoutes = require('./routes/hubspotRoutes');
+const googleSheetsRoutes = require('./routes/googleSheetsRoutes');
+const requireAuth = require('./authMiddleware');
 
 const app = express();
 
@@ -30,7 +32,9 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use('/api', requireAuth);
 app.use('/api/hubspot', hubspotRoutes);
+app.use('/api/google-sheets', googleSheetsRoutes);
 
 app.use((err, req, res, next) => {
   const status = err.statusCode || 500;

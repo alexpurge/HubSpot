@@ -29,6 +29,99 @@ router.post(
   asyncHandler('contacts.create', async (req) => hubspotService.createContact(req.body.properties || {}))
 );
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const extractBadProperty = (err) => {
+  try {
+    const body = err.hubspotBody;
+    if (!body) return null;
+    const msg = typeof body === 'string' ? body : body.message || '';
+    const jsonMatch = msg.match(/\[.*\]/s);
+    if (jsonMatch) {
+      const items = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(items) && items.length > 0 && items[0].name) {
+        return items[0].name;
+      }
+    }
+    if (body.validationResults) {
+      if (Array.isArray(body.validationResults) && body.validationResults.length > 0) {
+        return body.validationResults[0].name || null;
+      }
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return null;
+};
+
+const createOneWithPropertyRetry = async (createFn, properties) => {
+  let remaining = { ...properties };
+  const skipped = [];
+  const maxAttempts = Object.keys(remaining).length;
+  for (let attempt = 0; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await createFn(remaining);
+      return {
+        status: skipped.length > 0 ? 'warning' : 'created',
+        id: result.id,
+        skippedFields: skipped.length > 0 ? skipped : undefined,
+      };
+    } catch (err) {
+      const badProp = extractBadProperty(err);
+      if (badProp && remaining[badProp] !== undefined && Object.keys(remaining).length > 1) {
+        skipped.push(badProp);
+        delete remaining[badProp];
+        continue;
+      }
+      return { status: 'failed', error: err.message || 'Create failed' };
+    }
+  }
+  return { status: 'failed', error: 'Exceeded property-removal retries' };
+};
+
+const makeBatchHandler = (batchFn, singleFn, operationName) =>
+  asyncHandler(operationName, async (req) => {
+    const items = req.body.items || [];
+    if (items.length === 0) return { results: [] };
+    if (items.length > 100) {
+      const error = new Error('Batch size must not exceed 100 items');
+      error.statusCode = 400;
+      throw error;
+    }
+    const inputs = items.map((item) => ({ properties: item.properties || {} }));
+    try {
+      const batchResult = await batchFn(inputs);
+      return {
+        results: (batchResult.results || []).map((r, i) => ({
+          index: i,
+          status: 'created',
+          id: r.id,
+        })),
+      };
+    } catch (batchErr) {
+      // Batch failed (validation error etc.) - fall back to individual creates
+      const results = [];
+      for (let i = 0; i < items.length; i++) {
+        if (i > 0 && i % 9 === 0) await sleep(1000);
+        const result = await createOneWithPropertyRetry(singleFn, items[i].properties || {});
+        results.push({ index: i, ...result });
+      }
+      return { results };
+    }
+  });
+
+router.post('/contacts/batch-create', makeBatchHandler(
+  hubspotService.batchCreateContacts, hubspotService.createContact, 'contacts.batchCreate'
+));
+
+router.post('/companies/batch-create', makeBatchHandler(
+  hubspotService.batchCreateCompanies, hubspotService.createCompany, 'companies.batchCreate'
+));
+
+router.post('/deals/batch-create', makeBatchHandler(
+  hubspotService.batchCreateDeals, hubspotService.createDeal, 'deals.batchCreate'
+));
+
 router.get(
   '/contacts/:id',
   asyncHandler('contacts.getById', async (req) => {

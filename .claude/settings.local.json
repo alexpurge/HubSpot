@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(npm run dev:*)",
+      "Bash(start http://localhost:5173)",
+      "WebSearch",
+      "WebFetch(domain:developers.hubspot.com)",
+      "Bash(cd:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npx vite build)",
+      "Bash(taskkill:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(npx vite)",
+      "Bash(start http://localhost:5176)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npx vite --port 5173)"
+    ]
+  }
+}

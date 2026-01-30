@@ -11,6 +11,31 @@ const ensureToken = (operation) => {
 
 const sanitizeResponse = (data) => JSON.parse(JSON.stringify(data));
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const batchCreateWithRetry = async (batchApi, inputs, operation, stage) => {
+  ensureToken(operation);
+  const maxRetries = 4;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await batchApi.create({ inputs });
+      return sanitizeResponse(response);
+    } catch (err) {
+      const statusCode = err.response?.statusCode || err.statusCode;
+      if (statusCode === 429 && attempt < maxRetries) {
+        const retryAfter = err.response?.headers?.['retry-after'];
+        await sleep(retryAfter ? parseInt(retryAfter, 10) * 1000 : 11000);
+        continue;
+      }
+      if (statusCode >= 500 && attempt < maxRetries) {
+        await sleep(2000 * (attempt + 1));
+        continue;
+      }
+      throw wrapHubspotError(operation, stage, err);
+    }
+  }
+};
+
 const wrapHubspotError = (operation, stage, err) => {
   const error = new Error(err.message || 'HubSpot request failed');
   error.operation = operation;
@@ -391,6 +416,15 @@ const listWebhooks = async () => {
   throw error;
 };
 
+const batchCreateContacts = async (inputs) =>
+  batchCreateWithRetry(hubspotClient.crm.contacts.batchApi, inputs, 'contacts.batchCreate', 'batch-create-contacts');
+
+const batchCreateCompanies = async (inputs) =>
+  batchCreateWithRetry(hubspotClient.crm.companies.batchApi, inputs, 'companies.batchCreate', 'batch-create-companies');
+
+const batchCreateDeals = async (inputs) =>
+  batchCreateWithRetry(hubspotClient.crm.deals.batchApi, inputs, 'deals.batchCreate', 'batch-create-deals');
+
 const healthCheck = async () => {
   const operation = 'health.check';
   ensureToken(operation);
@@ -427,6 +461,9 @@ module.exports = {
   listProperties,
   createNote,
   createTask,
+  batchCreateContacts,
+  batchCreateCompanies,
+  batchCreateDeals,
   listWebhooks,
   healthCheck,
 };
